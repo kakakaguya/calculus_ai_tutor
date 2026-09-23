@@ -1,134 +1,169 @@
-Calculus AI Tutor
+# Calculus AI Tutor
 
-一個使用 LangChain + Ollama + Qwen3 8B 建立的本地端微積分 AI 助教。
+使用 **LangChain + Ollama + Qwen3** 建立的簡易微積分 AI 助教。
 
-本專案目前提供基本的自然語言問答功能，使用者可以輸入微積分相關問題，由本地部署的 Qwen3 8B 模型進行回答，並透過串流（Streaming）方式逐步顯示模型輸出的內容。
+目前可以透過自然語言向 AI 詢問微積分相關問題，並使用串流方式逐步顯示回答。
 
-本專案後續預計整合 RAG、向量資料庫、SymPy 數學計算、問題分類與 Router、數學圖片辨識以及前端介面，逐步發展成完整的學習課程助教系統。
+## 使用技術
 
-📌 專案特色
-使用本地端 LLM 進行問答
-使用 Qwen3 8B 作為語言模型
-使用 Ollama 管理與執行本地模型
-使用 LangChain 建立模型呼叫流程
-支援 Streaming 串流輸出
-使用繁體中文回答
-目前以微積分教學與問題解答為主要用途
-不需要將問題直接傳送到 OpenAI 等雲端 API
-後續可擴充 RAG、數學計算與圖片辨識等功能
-🛠️ 使用技術
-技術	用途
-Python	主要開發語言
-LangChain	建立 LLM 應用程式流程
-LangChain-Ollama	連接 LangChain 與 Ollama
-Ollama	本地端 LLM 執行環境
-Qwen3 8B	AI 語言模型
-Git / GitHub	程式版本控制與專案管理
-📋 環境需求
+* Python
+* LangChain
+* LangChain-Ollama
+* Ollama
+* Qwen3 8B
 
-開始使用本專案前，請確認電腦已安裝以下環境。
+## 環境需求
 
-Python
+* Python 3.10+
+* Ollama
+* Qwen3 8B 模型
 
-需要：
+## 安裝與設定
 
-Python 3.10+
+### 1. 安裝 Python
 
-建議使用 Python 3.11 或 3.12。
+確認 Python 已安裝：
 
-確認 Python 版本：
-
-python --version
-
-如果你的系統使用 python3：
-
+```bash
 python3 --version
-Ollama
+```
 
-本專案使用 Ollama 在本機執行 Qwen3 8B。
+如果有顯示 Python 版本，例如：
 
-請先安裝 Ollama。
+```text
+Python 3.12.3
+```
 
-安裝完成後，可以使用以下指令確認：
+即可繼續。
 
+### 2. 安裝 Ollama
+
+確認 Ollama 是否已安裝：
+
+```bash
 ollama --version
+```
 
-如果可以正常顯示版本號，代表 Ollama 已經安裝完成。
+### 3. 下載 Qwen3 8B 模型
 
-🤖 安裝 Qwen3 8B
+使用以下指令下載模型：
 
-安裝 Ollama 後，需要下載本專案使用的模型：
-
+```bash
 ollama pull qwen3:8b
+```
 
-下載完成後，可以使用：
+確認模型是否成功下載：
 
+```bash
 ollama list
+```
 
-確認模型是否存在。
+應該可以看到：
 
-應該可以看到類似：
+```text
+qwen3:8b
+```
 
-NAME       ID       SIZE
-qwen3:8b   ...      ...
-
-也可以直接測試：
-
-ollama run qwen3:8b
-
-如果可以輸入問題並得到回答，代表模型已經可以正常運作。
-
-離開模型：
-
-/bye
-📥 安裝專案
-1. Clone Repository
-
-首先將 GitHub 專案下載到本機：
-
-git clone https://github.com/kakakaguya/calculus_ai_tutor.git
+### 4. 建立 Python 虛擬環境
 
 進入專案資料夾：
 
+```bash
 cd calculus_ai_tutor
-🐍 建立 Python 虛擬環境
-
-建議使用虛擬環境，以避免不同 Python 專案之間的套件互相影響。
-
-Linux / WSL
+```
 
 建立虛擬環境：
 
+```bash
 python3 -m venv .venv
+```
 
-啟用：
+啟用虛擬環境：
 
+**Linux / WSL：**
+
+```bash
 source .venv/bin/activate
+```
 
-啟用後，終端機通常會看到：
+**Windows：**
 
-(.venv) user@computer:~/calculus_ai_tutor$
-Windows
-
-建立虛擬環境：
-
-python -m venv .venv
-
-啟用：
-
+```powershell
 .venv\Scripts\activate
-📦 安裝 Python 套件
+```
 
-啟用虛擬環境後：
+啟用成功後，終端機前方通常會出現：
 
+```text
+(.venv)
+```
+
+### 5. 安裝 Python 套件
+
+如果專案中已經有 `requirements.txt`：
+
+```bash
 pip install -r requirements.txt
+```
 
-如果尚未建立 requirements.txt，目前至少需要：
+如果尚未建立 `requirements.txt`，也可以直接安裝：
 
+```bash
+pip install langchain langchain-ollama
+```
+
+安裝完成後，即可開始執行專案。
+
+## 專案結構
+
+```text
+calculus_ai_tutor/
+├── main.py
+├── requirements.txt
+├── README.md
+└── .gitignore
+```
+
+### `main.py`
+
+主要的 Python 程式，負責：
+
+* 建立 Ollama 模型連線
+* 設定 AI 助教的角色
+* 接收使用者問題
+* 將問題傳送給 Qwen3
+* 使用串流方式顯示 AI 回答
+
+### `requirements.txt`
+
+記錄 Python 專案所需要的套件，例如：
+
+```text
 langchain
-langchain-core
 langchain-ollama
+```
 
-也可以直接安裝：
+可以透過以下指令一次安裝：
 
-pip install langchain langchain-core langchain-ollama
+```bash
+pip install -r requirements.txt
+```
+
+### `README.md`
+
+專案說明文件，包含安裝方式、使用方法與專案介紹。
+
+### `.gitignore`
+
+告訴 Git 哪些檔案不需要加入版本控制，例如：
+
+```text
+.venv/
+__pycache__/
+*.pyc
+.env
+```
+
+這可以避免把虛擬環境、Python 快取或敏感設定檔上傳到 GitHub。
+
+
