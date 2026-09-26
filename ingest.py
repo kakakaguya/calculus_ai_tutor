@@ -88,5 +88,4 @@ print("開始將文本塊加入向量資料庫...")
 vectorstore.add_documents(chunks)
 
 
-
 print("\n讀取完成！")
