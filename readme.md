@@ -137,6 +137,8 @@ rag/
 ├── database/
 │   ├── create_database.py      建立系統資料庫
 │   └── calculus_tutor.db
+├── web_app.py                  簡易網頁介面（python web_app.py）
+├── test_web_app.py             網頁介面測試
 ├── tests/                      單元測試
 ├── data/                       資料（不進 git）
 │   ├── raw/                    原始教材

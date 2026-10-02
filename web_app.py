@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = Path(os.environ.get("CALCULUS_TUTOR_DB", BASE_DIR / "calculus_tutor.db"))
+DB_PATH = Path(os.environ.get("CALCULUS_TUTOR_DB", BASE_DIR / "database" / "calculus_tutor.db"))
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:8b")
 SYSTEM_PROMPT = "你是一位專業的微積分助教，請使用繁體中文簡潔回答。"
