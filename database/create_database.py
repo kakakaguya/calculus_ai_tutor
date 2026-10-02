@@ -148,4 +148,4 @@ if __name__ == "__main__":
     insert_sample_data(conn)
     show_all_tables(conn)
     conn.close()
-    print("\n完成！可以用資料庫檢視工具（例如 DB Browser for SQLite）打開 calculus_tutor.db 來看看內容。")
+    print("\n完成！")
