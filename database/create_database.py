@@ -5,8 +5,9 @@ use:python create_database.py
 
 import sqlite3
 import os
+from pathlib import Path
 
-DB_NAME = "calculus_tutor.db"
+DB_NAME = Path(__file__).with_name("calculus_tutor.db")
 
 
 def create_connection():

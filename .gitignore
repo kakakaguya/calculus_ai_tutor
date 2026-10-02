@@ -1,7 +1,9 @@
 .venv/
+.venv-mineru/
 venv/
 __pycache__/
 *.pyc
 .env
+:memory:.ses
 data/
 chroma_db/

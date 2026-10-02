@@ -100,13 +100,13 @@ source .venv/bin/activate
 
 ### 5. 安裝 Python 套件
 
-如果專案中已經有 `requirements.txt`：
+安裝專案依賴：
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirement.txt
 ```
 
-如果尚未建立 `requirements.txt`，也可以直接安裝：
+如果尚未建立 `requirement.txt`，也可以直接安裝：
 
 ```bash
 pip install langchain langchain-ollama
@@ -117,16 +117,32 @@ pip install langchain langchain-ollama
 ## 專案結構
 
 ```text
-calculus_ai_tutor/
-├── main.py
-├── requirements.txt
+rag/
+├── ingestion/                  PDF → Markdown 讀取流程
+│   ├── ingest_mineru.py        用 MinerU 轉換 PDF
+│   ├── mineru_cleanup.py       修正 MinerU 輸出的固定錯誤
+│   └── clean_mineru_outputs.py 對已轉換的檔案重新套用清理規則
+├── tutor/
+│   └── main_rag.py             助教問答
+├── database/
+│   ├── create_database.py      建立系統資料庫
+│   └── calculus_tutor.db
+├── tests/                      單元測試
+├── data/                       資料（不進 git）
+│   ├── raw/                    原始教材
+│   ├── pdf_split/              切好的 192 份課本 PDF
+│   ├── markdown/               轉換後的 Markdown
+│   └── backup/                 清理前的備份
+├── requirement.txt
 ├── README.md
 └── .gitignore
 ```
 
-### `main.py`
+程式請在專案根目錄用 `python -m` 執行，例如 `python -m ingestion.ingest_mineru`，檔案間的 import 才找得到。
 
-主要的 Python 程式，負責：
+### `tutor/main_rag.py`
+
+助教問答程式，負責：
 
 * 建立 Ollama 模型連線
 * 設定 AI 助教的角色
@@ -134,7 +150,7 @@ calculus_ai_tutor/
 * 將問題傳送給 Qwen3
 * 使用串流方式顯示 AI 回答
 
-### `requirements.txt`
+### `requirement.txt`
 
 記錄 Python 專案所需要的套件，例如：
 
@@ -146,7 +162,7 @@ langchain-ollama
 可以透過以下指令一次安裝：
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirement.txt
 ```
 
 ### `README.md`
@@ -166,4 +182,32 @@ __pycache__/
 
 這可以避免把虛擬環境、Python 快取或敏感設定檔上傳到 GitHub。
 
+## PDF 轉 Markdown（MinerU）
 
+[ingestion/ingest_mineru.py](ingestion/ingest_mineru.py) 用 MinerU 的本地模型讀取課本 PDF，正文、行內式和獨立公式都會輸出成 Markdown + LaTeX（曾試過 Docling、EasyOCR + Pix2Text，公式與正文的正確率都明顯較差）。MinerU 裝在獨立的虛擬環境 `.venv-mineru`，避免和專案其他套件的依賴衝突；程式從專案原本的 `.venv` 執行，透過子程序呼叫 MinerU。
+
+安裝（只需一次，模型約 2 GB，存在 `~/.mineru/models`）：
+
+```bash
+python3 -m venv .venv-mineru
+.venv-mineru/bin/pip install "mineru>=4.0,<5"
+.venv-mineru/bin/mineru-kit models download --tier standard
+.venv-mineru/bin/mineru-kit models verify --tier standard
+```
+
+執行：
+
+```bash
+python -m ingestion.ingest_mineru               # 轉換 data/pdf_split/ 全部 PDF 到 data/markdown/
+python -m ingestion.ingest_mineru --limit 2     # 只試跑前 2 份
+python -m ingestion.ingest_mineru --resume      # 中斷後接續：略過已轉換的 PDF
+python -m ingestion.clean_mineru_outputs --dry-run  # 只列出清理規則會修改的檔案
+python -m ingestion.clean_mineru_outputs        # 對已轉換的 Markdown 重新套用清理規則
+python -m pytest tests                # 執行單元測試
+```
+
+- 只在本機解析，程式不會傳 `--remote`，PDF 不會上傳。
+- 使用 `standard` 等級（ONNX 版面/OCR 模型 + MinerU2.5-Pro 1.2B VLM 公式模型，llama.cpp 會用到 GPU，約 2 GB 顯存）。
+- 強制 OCR（`--ocr-mode ocr`）：這本書的 PDF 文字層數學字型對應錯誤，用預設的 auto 模式時 δ 會消失、`>` 變 `≥`。強制 OCR 每份 5 頁約 3 分鐘，記憶體峰值約 3.4 GB。
+- 後處理（[ingestion/mineru_cleanup.py](ingestion/mineru_cleanup.py)）：嵌入的 base64 圖片（含表格內的 `<img>`）換成 `<!-- image -->`；被誤讀成大片空白表格的圖形換成 `<!-- image -->`；刪除出版社版權頁尾；多行推導外被誤加的 `\left| … \right|` 拆掉（每列都含 `=`、`≈`、`≤` 等關係才拆，真正的行列式保留）；`\varliminf` 改回 `\lim`。
+- 清理前的完整輸出備份在 `data/backup/data_markdown_mineru_before_cleanup.tar.gz`（資料夾整理前打包，解壓後的資料夾名稱是舊的 `data_markdown_mineru/`）。

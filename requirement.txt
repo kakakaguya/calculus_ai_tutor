@@ -1,8 +1,8 @@
 langchain
 langchain-core
 langchain-ollama
-langchain-docling
 langchain-chroma
+langchain-text-splitters
 chromadb
-docling
 ollama
+pytest
