@@ -7,3 +7,4 @@ __pycache__/
 :memory:.ses
 data/
 chroma_db/
+database/calculus_tutor.db

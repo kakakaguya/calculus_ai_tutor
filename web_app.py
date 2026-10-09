@@ -96,20 +96,6 @@ def save_record(question: str, answer: str, source: str) -> None:
         )
 
 
-def build_messages(question: str) -> list[dict[str, str]]:
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    # 示範回答不帶入模型
-    for record in get_history(limit=10):
-        if record["answer_source"] == "ollama":
-            messages.extend(
-                [
-                    {"role": "user", "content": record["question"]},
-                    {"role": "assistant", "content": record["answer"]},
-                ]
-            )
-    messages.append({"role": "user", "content": question})
-    return messages
-
 
 def friendly_ollama_error(error: Exception) -> str:
     if isinstance(error, HTTPError):
@@ -119,14 +105,14 @@ def friendly_ollama_error(error: Exception) -> str:
     return "Ollama 回覆格式異常，請稍後再試。"
 
 
-def call_ollama(messages: list[dict[str, str]]) -> str:
-    payload = json.dumps({"model": OLLAMA_MODEL, "messages": messages, "stream": False}).encode()
-    request = Request(OLLAMA_URL, data=payload, headers={"Content-Type": "application/json"})
-    with urlopen(request, timeout=60) as response:
-        data = json.loads(response.read().decode("utf-8"))
-    answer = data.get("message", {}).get("content", "").strip()
+def call_ollama(question: str) -> str:
+    # 匯入main_rag.py 寫好的 LCEL 檢索鏈
+    from tutor.main_rag import rag_chain
+
+    answer = rag_chain.invoke(question)
+    
     if not answer:
-        raise ValueError("empty Ollama response")
+        raise ValueError("沒有收到 AI 的回覆")
     return answer
 
 
@@ -139,11 +125,13 @@ def answer_question(question: str) -> dict:
     if not question:
         raise ValueError("問題不可空白")
     try:
-        answer = call_ollama(build_messages(question))
+        # 直接把使用者的問題傳給 call_ollama 處理
+        answer = call_ollama(question)
         source, notice = "ollama", None
-    except (HTTPError, URLError, ValueError, json.JSONDecodeError) as error:
+    except Exception as error:  # 把攔截的範圍擴大，捕捉 LangChain 可能的錯誤
         answer = demo_answer(question)
         source, notice = "demo", friendly_ollama_error(error)
+        
     save_record(question, answer, source)
     return {"question": question, "answer": answer, "source": source, "notice": notice}
 
@@ -151,12 +139,30 @@ def answer_question(question: str) -> dict:
 PAGE = r"""<!doctype html>
 <html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>微積分助教</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem;white-space:pre-wrap}.user{font-weight:bold}.assistant{margin:0 0 1rem}.demo{color:#8a5500}form{display:flex;gap:.5rem}input{flex:1;padding:.65rem}button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}</style>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.6}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem;white-space:pre-wrap}.user{font-weight:bold;color:#0056b3}.assistant{margin:0 0 1.5rem}.demo{color:#8a5500}form{display:flex;gap:.5rem}input{flex:1;padding:.65rem}button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}</style>
+
+<!-- 1. 引入 MathJax 來渲染數學公式 -->
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 <h1>微積分助教</h1><div id="chat" aria-live="polite">載入歷史紀錄中…</div>
 <form id="form"><input id="question" required placeholder="輸入你的問題" aria-label="問題"><button>送出</button></form><p id="status"></p>
 <script>
 const chat=document.querySelector('#chat'), form=document.querySelector('#form'), input=document.querySelector('#question'), status=document.querySelector('#status');
-function add(record){const q=document.createElement('div');q.className='user';q.textContent='你：'+record.question;const a=document.createElement('div');a.className='assistant '+(record.answer_source=== 'demo'||record.source==='demo'?'demo':'');a.textContent=(record.answer_source=== 'demo'||record.source==='demo'?'示範回覆：':'Ollama：')+record.answer;chat.append(q,a);chat.scrollTop=chat.scrollHeight}
+function add(record){
+    const q=document.createElement('div');q.className='user';q.textContent='你：'+record.question;
+    const a=document.createElement('div');a.className='assistant '+(record.answer_source=== 'demo'||record.source==='demo'?'demo':'');
+    a.textContent=(record.answer_source=== 'demo'||record.source==='demo'?'示範回覆：':'Ollama：')+record.answer;
+    chat.append(q,a);
+    chat.scrollTop=chat.scrollHeight;
+    
+    // 2. 每次有新訊息加入時，呼叫 MathJax 重新渲染該段落的數學公式
+    if(window.MathJax) MathJax.typesetPromise([a]);
+}
 fetch('/api/history').then(r=>r.json()).then(rows=>{chat.textContent='';rows.forEach(add)}).catch(()=>chat.textContent='歷史紀錄載入失敗。');
 form.addEventListener('submit',async e=>{e.preventDefault();const question=input.value.trim();if(!question)return;input.disabled=true;form.querySelector('button').disabled=true;status.textContent='正在送往 Ollama…';try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});const data=await r.json();if(!r.ok)throw new Error(data.error||'送出失敗');add(data);input.value='';status.textContent=data.notice||'已收到 Ollama 回覆。'}catch(err){status.textContent=err.message}finally{input.disabled=false;form.querySelector('button').disabled=false;input.focus()}});
 </script></html>"""
