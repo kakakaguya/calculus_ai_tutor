@@ -56,7 +56,7 @@ def main():
         persist_directory=str(CHROMA_DB_DIR)
     )
 
-    print(f"🎉 向量資料庫建立完成！已儲存至：{CHROMA_DB_DIR}")
+    print(f" 向量資料庫建立完成！已儲存至：{CHROMA_DB_DIR}")
 
 if __name__ == "__main__":
     main()
