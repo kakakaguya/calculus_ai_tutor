@@ -54,12 +54,13 @@ Python 3.12.3
 ollama --version
 ```
 
-### 3. 下載 Qwen3 8B 模型
+### 3. 下載 Qwen3 8B 與 Embedding 模型
 
 使用以下指令下載模型：
 
 ```bash
 ollama pull qwen3:8b
+ollama pull nomic-embed-text
 ```
 
 確認模型是否成功下載：
@@ -71,6 +72,7 @@ ollama list
 應該可以看到：
 
 ```text
+nomic-embed-text
 qwen3:8b
 ```
 
@@ -121,7 +123,12 @@ pip install -r requirement.txt
 ```bash
 pip install langchain langchain-ollama
 ```
+### 6. 建立向量資料庫
+開始問答前，需要先將微積分教材轉換為向量儲存。請在虛擬環境下執行：
 
+```bash
+python -m ingestion.build_vector_db
+```
 安裝完成後，即可開始執行專案。
 
 ## 專案結構
