@@ -1,0 +1,749 @@
+{
+ "Calculus[1] (2)_merged-1.pdf": [],
+ "Calculus[1] (2)_merged-2.pdf": [],
+ "Calculus[1] (2)_merged-3.pdf": [],
+ "Calculus[1] (2)_merged-4.pdf": [],
+ "Calculus[1] (2)_merged-5.pdf": [],
+ "Calculus[1] (2)_merged-6.pdf": [
+  "Functions",
+  "Representations of Functions"
+ ],
+ "Calculus[1] (2)_merged-7.pdf": [
+  "Which Rules Define Functions?",
+  "Piecewise Defined Functions",
+  "Even and Odd Functions",
+  "Increasing and Decreasing Functions"
+ ],
+ "Calculus[1] (2)_merged-8.pdf": [
+  "Linear Models"
+ ],
+ "Calculus[1] (2)_merged-9.pdf": [
+  "Polynomials",
+  "Power Functions"
+ ],
+ "Calculus[1] (2)_merged-10.pdf": [
+  "Rational Functions",
+  "Algebraic Functions",
+  "Trigonometric Functions",
+  "Exponential Functions",
+  "Logarithmic Functions",
+  "Transformations of Functions"
+ ],
+ "Calculus[1] (2)_merged-11.pdf": [
+  "Combinations of Functions"
+ ],
+ "Calculus[1] (2)_merged-12.pdf": [
+  "The Tangent Problem",
+  "The Velocity Problem"
+ ],
+ "Calculus[1] (2)_merged-13.pdf": [
+  "Finding Limits Numerically and Graphically",
+  "One-Sided Limits"
+ ],
+ "Calculus[1] (2)_merged-14.pdf": [
+  "How Can a Limit Fail to Exist?",
+  "Infinite Limits; Vertical Asymptotes"
+ ],
+ "Calculus[1] (2)_merged-15.pdf": [
+  "Evaluating Limits by Direct Substitution"
+ ],
+ "Calculus[1] (2)_merged-16.pdf": [
+  "Using One-Sided Limits",
+  "The Squeeze Theorem"
+ ],
+ "Calculus[1] (2)_merged-17.pdf": [
+  "The Precise Definition of a Limit"
+ ],
+ "Calculus[1] (2)_merged-18.pdf": [
+  "One-Sided Limits",
+  "The Limit Laws",
+  "Infinite Limits",
+  "Continuity of a Function"
+ ],
+ "Calculus[1] (2)_merged-19.pdf": [
+  "Properties of Continuous Functions"
+ ],
+ "Calculus[1] (2)_merged-20.pdf": [
+  "The Intermediate Value Theorem"
+ ],
+ "Calculus[1] (2)_merged-21.pdf": [],
+ "Calculus[1] (2)_merged-22.pdf": [
+  "Tangents",
+  "Velocities",
+  "Derivatives"
+ ],
+ "Calculus[1] (2)_merged-23.pdf": [
+  "Rates of Change",
+  "The Derivative Function"
+ ],
+ "Calculus[1] (2)_merged-24.pdf": [
+  "Other Notations",
+  "How Can a Function Fail To Be Differentiable?"
+ ],
+ "Calculus[1] (2)_merged-25.pdf": [
+  "Higher Derivatives",
+  "Constant Functions",
+  "Power Functions"
+ ],
+ "Calculus[1] (2)_merged-26.pdf": [
+  "New Derivatives from Old",
+  "The Product Rule",
+  "The Quotient Rule"
+ ],
+ "Calculus[1] (2)_merged-27.pdf": [
+  "General Power Functions",
+  "Derivatives of the Trigonometric Functions"
+ ],
+ "Calculus[1] (2)_merged-28.pdf": [
+  "Two Special Trigonometric Limits"
+ ],
+ "Calculus[1] (2)_merged-29.pdf": [
+  "The Chain Rule"
+ ],
+ "Calculus[1] (2)_merged-30.pdf": [
+  "How to Prove the Chain Rule",
+  "Implicitly Defined Functions",
+  "Implicit Differentiation"
+ ],
+ "Calculus[1] (2)_merged-31.pdf": [
+  "Second Derivatives of Implicit Functions",
+  "Physics"
+ ],
+ "Calculus[1] (2)_merged-32.pdf": [
+  "Chemistry",
+  "Biology",
+  "Economics"
+ ],
+ "Calculus[1] (2)_merged-33.pdf": [
+  "Other Sciences",
+  "A Single Idea, Many Interpretations"
+ ],
+ "Calculus[1] (2)_merged-34.pdf": [
+  "Linearization and Approximation",
+  "Applications to Physics",
+  "Differentials"
+ ],
+ "Calculus[1] (2)_merged-35.pdf": [
+  "Absolute and Local Extreme Values"
+ ],
+ "Calculus[1] (2)_merged-36.pdf": [
+  "Critical Numbers and the Closed Interval Method"
+ ],
+ "Calculus[1] (2)_merged-37.pdf": [
+  "Rolle’s Theorem",
+  "The Mean Value Theorem"
+ ],
+ "Calculus[1] (2)_merged-38.pdf": [
+  "What Does",
+  "The First Derivative Test",
+  "What Does"
+ ],
+ "Calculus[1] (2)_merged-39.pdf": [
+  "The Second Derivative Test",
+  "Curve Sketching",
+  "Limits at Infinity and Horizontal Asymptotes"
+ ],
+ "Calculus[1] (2)_merged-40.pdf": [
+  "Evaluating Limits at Infinity",
+  "Infinite Limits at Infinity"
+ ],
+ "Calculus[1] (2)_merged-41.pdf": [
+  "Precise Definitions"
+ ],
+ "Calculus[1] (2)_merged-42.pdf": [
+  "Guidelines for Sketching a Curve",
+  "Slant Asymptotes"
+ ],
+ "Calculus[1] (2)_merged-43.pdf": [],
+ "Calculus[1] (2)_merged-44.pdf": [
+  "Applications to Business and Economics"
+ ],
+ "Calculus[1] (2)_merged-45.pdf": [
+  "The Antiderivative of a Function",
+  "Antidifferentiation Formulas",
+  "Graphing Antiderivatives",
+  "Linear Motion"
+ ],
+ "Calculus[1] (2)_merged-46.pdf": [
+  "The Area Problem"
+ ],
+ "Calculus[1] (2)_merged-47.pdf": [],
+ "Calculus[1] (2)_merged-48.pdf": [
+  "The Distance Problem",
+  "The Definite Integral"
+ ],
+ "Calculus[1] (2)_merged-49.pdf": [
+  "Evaluating Definite Integrals",
+  "The Midpoint Rule"
+ ],
+ "Calculus[1] (2)_merged-50.pdf": [
+  "Properties of the Definite Integral",
+  "The Fundamental Theorem of Calculus, Part 1"
+ ],
+ "Calculus[1] (2)_merged-51.pdf": [
+  "The Fundamental Theorem of Calculus, Part 2"
+ ],
+ "Calculus[1] (2)_merged-52.pdf": [
+  "Differentiation and Integration as Inverse Processes",
+  "Indefinite Integrals",
+  "The Net Change Theorem"
+ ],
+ "Calculus[1] (2)_merged-53.pdf": [
+  "Substitution: Indefinite Integrals"
+ ],
+ "Calculus[1] (2)_merged-54.pdf": [
+  "Substitution: Definite Integrals",
+  "Symmetry",
+  "Area Between Curves: Integrating With Respect to"
+ ],
+ "Calculus[1] (2)_merged-55.pdf": [
+  "Area Between Curves: Integrating With Respect to",
+  "Applications"
+ ],
+ "Calculus[1] (2)_merged-56.pdf": [
+  "Definition of Volume",
+  "Volumes of Solids of Revolution"
+ ],
+ "Calculus[1] (2)_merged-57.pdf": [
+  "Finding Volume Using Cross-Sectional Area"
+ ],
+ "Calculus[1] (2)_merged-58.pdf": [
+  "The Method of Cylindrical Shells",
+  "Disks and Washers versus Cylindrical Shells"
+ ],
+ "Calculus[1] (2)_merged-59.pdf": [],
+ "Calculus[1] (2)_merged-60.pdf": [
+  "Inverse Functions"
+ ],
+ "Calculus[1] (2)_merged-61.pdf": [
+  "Derivatives of Inverse Functions"
+ ],
+ "Calculus[1] (2)_merged-62.pdf": [
+  "Exponential Functions and Their Properties",
+  "Applications of Exponential Functions"
+ ],
+ "Calculus[1] (2)_merged-63.pdf": [
+  "Derivatives and Integrals of Exponential Functions",
+  "Exponential Graphs"
+ ],
+ "Calculus[1] (2)_merged-64.pdf": [
+  "Derivative of the Natural Logarithm Function",
+  "Integrals involving the Natural Logarithm"
+ ],
+ "Calculus[1] (2)_merged-65.pdf": [
+  "General Logarithmic and Exponential Functions",
+  "Logarithmic Differentiation",
+  "The Number"
+ ],
+ "Calculus[1] (2)_merged-66.pdf": [
+  "Properties and the Derivative of the Natural Logarithm Function"
+ ],
+ "Calculus[1] (2)_merged-67.pdf": [
+  "Integrals involving the Natural Logarithm",
+  "Logarithmic Differentiation",
+  "The Natural Exponential Function and Its Properties",
+  "Differentiation"
+ ],
+ "Calculus[1] (2)_merged-68.pdf": [
+  "Integration",
+  "General Exponential Functions",
+  "Exponential Graphs"
+ ],
+ "Calculus[1] (2)_merged-69.pdf": [
+  "Exponential Integrals",
+  "The Power Rule versus the Exponential Rule",
+  "General Logarithmic Functions",
+  "The Number"
+ ],
+ "Calculus[1] (2)_merged-70.pdf": [
+  "Population Growth",
+  "Radioactive Decay",
+  "Newton’s Law of Cooling"
+ ],
+ "Calculus[1] (2)_merged-71.pdf": [
+  "Continuously Compounded Interest",
+  "Inverse Trigonometric Functions: Definitions and Derivatives"
+ ],
+ "Calculus[1] (2)_merged-72.pdf": [
+  "Integrals involving Inverse Trigonometric Functions"
+ ],
+ "Calculus[1] (2)_merged-73.pdf": [
+  "Hyperbolic Functions and Their Derivatives",
+  "Inverse Hyperbolic Functions and Their Derivatives"
+ ],
+ "Calculus[1] (2)_merged-74.pdf": [
+  "Indeterminate Forms",
+  "L ’Hospital’s Rule"
+ ],
+ "Calculus[1] (2)_merged-75.pdf": [
+  "Indeterminate Products (Type",
+  "Indeterminate Differences (Type",
+  "Indeterminate Powers (Types",
+  "Proof of l’Hospital’s Rule"
+ ],
+ "Calculus[1] (2)_merged-76.pdf": [
+  "Integration by Parts: Indefinite Integrals",
+  "Integration by Parts: Definite Integrals",
+  "Reduction Formulas"
+ ],
+ "Calculus[1] (2)_merged-77.pdf": [
+  "Integrals of Powers of Sine and Cosine"
+ ],
+ "Calculus[1] (2)_merged-78.pdf": [
+  "Integrals of Powers of Secant and Tangent",
+  "Using Product Identities"
+ ],
+ "Calculus[1] (2)_merged-79.pdf": [],
+ "Calculus[1] (2)_merged-80.pdf": [
+  "The Method of Partial Fractions"
+ ],
+ "Calculus[1] (2)_merged-81.pdf": [
+  "Rationalizing Substitutions",
+  "Guidelines for Integration"
+ ],
+ "Calculus[1] (2)_merged-82.pdf": [
+  "Can We Integrate All Continuous Functions?",
+  "Tables of Integrals"
+ ],
+ "Calculus[1] (2)_merged-83.pdf": [
+  "Integration Using Technology",
+  "The Midpoint and Trapezoidal Rules"
+ ],
+ "Calculus[1] (2)_merged-84.pdf": [
+  "Error Bounds for the Midpoint and Trapezoidal Rules",
+  "Simpson’s Rule"
+ ],
+ "Calculus[1] (2)_merged-85.pdf": [
+  "Error Bound for Simpson’s Rule",
+  "Type 1:Infinite Intervals"
+ ],
+ "Calculus[1] (2)_merged-86.pdf": [
+  "Type 2:Discontinuous Integrands",
+  "A Comparison Test for Improper Integrals"
+ ],
+ "Calculus[1] (2)_merged-87.pdf": [
+  "Arc Length of a Curve"
+ ],
+ "Calculus[1] (2)_merged-88.pdf": [
+  "The Arc Length Function"
+ ],
+ "Calculus[1] (2)_merged-89.pdf": [],
+ "Calculus[1] (2)_merged-90.pdf": [
+  "Hydrostatic Pressure and Force",
+  "Moments and Centers of Mass"
+ ],
+ "Calculus[1] (2)_merged-91.pdf": [
+  "Theorem of Pappus",
+  "Consumer Surplus"
+ ],
+ "Calculus[1] (2)_merged-92.pdf": [
+  "Blood Flow",
+  "Cardiac Output",
+  "Probability Density Functions"
+ ],
+ "Calculus[1] (2)_merged-93.pdf": [
+  "Average Values",
+  "Normal Distributions"
+ ],
+ "Calculus[1] (2)_merged-94.pdf": [
+  "Models for Population Growth",
+  "A Model for the Motion of a Spring",
+  "General Differential Equations"
+ ],
+ "Calculus[1] (2)_merged-95.pdf": [
+  "Direction Fields"
+ ],
+ "Calculus[1] (2)_merged-96.pdf": [
+  "Euler’s Method",
+  "Separable Differential Equations"
+ ],
+ "Calculus[1] (2)_merged-97.pdf": [
+  "Orthogonal Trajectories",
+  "Mixing Problems",
+  "The Law of Natural Growth"
+ ],
+ "Calculus[1] (2)_merged-98.pdf": [
+  "The Logistic Model",
+  "Comparison of the Natural Growth and Logistic Models"
+ ],
+ "Calculus[1] (2)_merged-99.pdf": [
+  "Other Models for Population Growth",
+  "Linear Differential Equations"
+ ],
+ "Calculus[1] (2)_merged-100.pdf": [
+  "Application to Electric Circuits"
+ ],
+ "Calculus[1] (2)_merged-101.pdf": [
+  "Parametric Equations"
+ ],
+ "Calculus[1] (2)_merged-102.pdf": [
+  "Graphing Parametric Curves with Technology",
+  "The Cycloid",
+  "Families of Parametric Curves"
+ ],
+ "Calculus[1] (2)_merged-103.pdf": [
+  "Tangents",
+  "Areas",
+  "Arc Length"
+ ],
+ "Calculus[1] (2)_merged-104.pdf": [
+  "Surface Area",
+  "The Polar Coordinate System",
+  "Relationship between Polar and Cartesian Coordinates"
+ ],
+ "Calculus[1] (2)_merged-105.pdf": [
+  "Polar Curves",
+  "Symmetry",
+  "Graphing Polar Curves with Technology"
+ ],
+ "Calculus[1] (2)_merged-106.pdf": [
+  "Area",
+  "Arc Length",
+  "Tangents"
+ ],
+ "Calculus[1] (2)_merged-107.pdf": [
+  "Parabolas",
+  "Ellipses"
+ ],
+ "Calculus[1] (2)_merged-108.pdf": [
+  "Hyperbolas",
+  "Shifted Conics",
+  "A Unified Description of Conics"
+ ],
+ "Calculus[1] (2)_merged-109.pdf": [
+  "Polar Equations of Conics",
+  "Kepler’s Laws"
+ ],
+ "Calculus[1] (2)_merged-110.pdf": [
+  "Infinite Sequences",
+  "The Limit of a Sequence"
+ ],
+ "Calculus[1] (2)_merged-111.pdf": [
+  "Properties of Convergent Sequences",
+  "Monotonic and Bounded Sequences"
+ ],
+ "Calculus[1] (2)_merged-112.pdf": [
+  "Infinite Series"
+ ],
+ "Calculus[1] (2)_merged-113.pdf": [
+  "Sum of a Geometric Series",
+  "Test for Divergence"
+ ],
+ "Calculus[1] (2)_merged-114.pdf": [
+  "Properties of Convergent Series",
+  "The Integral Test"
+ ],
+ "Calculus[1] (2)_merged-115.pdf": [
+  "Estimating the Sum of a Series"
+ ],
+ "Calculus[1] (2)_merged-116.pdf": [
+  "The Direct Comparison Test",
+  "Limit Comparison Test",
+  "Estimating Sums"
+ ],
+ "Calculus[1] (2)_merged-117.pdf": [
+  "Alternating Series",
+  "Estimating Sums of Alternating Series"
+ ],
+ "Calculus[1] (2)_merged-118.pdf": [
+  "Absolute Convergence and Conditional Convergence",
+  "Rearrangements",
+  "The Ratio Test"
+ ],
+ "Calculus[1] (2)_merged-119.pdf": [
+  "The Root Test"
+ ],
+ "Calculus[1] (2)_merged-120.pdf": [
+  "Power Series",
+  "Interval of Convergence"
+ ],
+ "Calculus[1] (2)_merged-121.pdf": [
+  "Representations of Functions using Geometric Series",
+  "Differentiation and Integration of Power Series",
+  "Functions Defined by Power Series"
+ ],
+ "Calculus[1] (2)_merged-122.pdf": [
+  "Definitions of Taylor Series and Maclaurin Series",
+  "When Is a Function Represented by Its Taylor Series?"
+ ],
+ "Calculus[1] (2)_merged-123.pdf": [
+  "Taylor Series of Important Functions"
+ ],
+ "Calculus[1] (2)_merged-124.pdf": [
+  "New Taylor Series from Old",
+  "Multiplication and Division of Power Series"
+ ],
+ "Calculus[1] (2)_merged-125.pdf": [
+  "Approximating Functions by Polynomials",
+  "Applications to Physics"
+ ],
+ "Calculus[1] (2)_merged-126.pdf": [
+  "3D Space",
+  "Surfaces and Solids"
+ ],
+ "Calculus[1] (2)_merged-127.pdf": [
+  "Distance and Spheres",
+  "Geometric Description of Vectors"
+ ],
+ "Calculus[1] (2)_merged-128.pdf": [
+  "Components of a Vector",
+  "Applications"
+ ],
+ "Calculus[1] (2)_merged-129.pdf": [
+  "The Dot Product of Two Vectors",
+  "Direction Angles and Direction Cosines"
+ ],
+ "Calculus[1] (2)_merged-130.pdf": [
+  "Projections",
+  "Application: Work",
+  "The Cross Product of Two Vectors",
+  "Properties of the Cross Product"
+ ],
+ "Calculus[1] (2)_merged-131.pdf": [
+  "Triple Products",
+  "Application: Torque",
+  "Lines"
+ ],
+ "Calculus[1] (2)_merged-132.pdf": [
+  "Planes"
+ ],
+ "Calculus[1] (2)_merged-133.pdf": [
+  "Distances",
+  "Cylinders",
+  "Quadric Surfaces"
+ ],
+ "Calculus[1] (2)_merged-134.pdf": [
+  "Applications of Quadric Surfaces"
+ ],
+ "Calculus[1] (2)_merged-135.pdf": [
+  "Vector-Valued Functions",
+  "Limits and Continuity",
+  "Space Curves",
+  "Using Technology to Draw Space Curves"
+ ],
+ "Calculus[1] (2)_merged-136.pdf": [
+  "Derivatives",
+  "Differentiation Rules",
+  "Integrals"
+ ],
+ "Calculus[1] (2)_merged-137.pdf": [
+  "Arc Length",
+  "The Arc Length Function",
+  "Curvature"
+ ],
+ "Calculus[1] (2)_merged-138.pdf": [
+  "The Normal and Binormal Vectors",
+  "Torsion"
+ ],
+ "Calculus[1] (2)_merged-139.pdf": [
+  "Velocity, Speed, and Acceleration",
+  "Projectile Motion",
+  "Tangential and Normal Components of Acceleration"
+ ],
+ "Calculus[1] (2)_merged-140.pdf": [
+  "Kepler’s Laws of Planetary Motion"
+ ],
+ "Calculus[1] (2)_merged-141.pdf": [
+  "Functions of Two Variables",
+  "Graphs"
+ ],
+ "Calculus[1] (2)_merged-142.pdf": [
+  "Level Curves and Contour Maps"
+ ],
+ "Calculus[1] (2)_merged-143.pdf": [
+  "Functions of Three or More Variables",
+  "Limits of Functions of Two Variables"
+ ],
+ "Calculus[1] (2)_merged-144.pdf": [
+  "Showing That a Limit Does Not Exist",
+  "Properties of Limits",
+  "Continuity"
+ ],
+ "Calculus[1] (2)_merged-145.pdf": [
+  "Functions of Three or More Variables",
+  "Partial Derivatives of Functions of Two Variables"
+ ],
+ "Calculus[1] (2)_merged-146.pdf": [
+  "Interpretations of Partial Derivatives",
+  "Functions of Three or More Variables",
+  "Higher Derivatives",
+  "Partial Differential Equations"
+ ],
+ "Calculus[1] (2)_merged-147.pdf": [
+  "Tangent Planes",
+  "Linear Approximations"
+ ],
+ "Calculus[1] (2)_merged-148.pdf": [
+  "Differentials",
+  "Functions of Three or More Variables",
+  "The Chain Rule: Case 1"
+ ],
+ "Calculus[1] (2)_merged-149.pdf": [
+  "The Chain Rule: Case 2",
+  "The Chain Rule: General Version",
+  "Implicit Differentiation"
+ ],
+ "Calculus[1] (2)_merged-150.pdf": [
+  "Directional Derivatives",
+  "The Gradient Vector"
+ ],
+ "Calculus[1] (2)_merged-151.pdf": [
+  "Functions of Three Variables",
+  "Maximizing the Directional Derivative",
+  "Tangent Planes to Level Surfaces"
+ ],
+ "Calculus[1] (2)_merged-152.pdf": [
+  "Significance of the Gradient Vector",
+  "Local Maximum and Minimum Values"
+ ],
+ "Calculus[1] (2)_merged-153.pdf": [
+  "Absolute Maximum and Minimum Values",
+  "Proof of the Second Derivatives Test"
+ ],
+ "Calculus[1] (2)_merged-154.pdf": [
+  "Lagrange Multipliers: One Constraint"
+ ],
+ "Calculus[1] (2)_merged-155.pdf": [
+  "Lagrange Multipliers: Two Constraints",
+  "Review of the Definite Integral",
+  "Volumes and Double Integrals"
+ ],
+ "Calculus[1] (2)_merged-156.pdf": [
+  "The Midpoint Rule",
+  "Iterated Integrals"
+ ],
+ "Calculus[1] (2)_merged-157.pdf": [
+  "Average Value"
+ ],
+ "Calculus[1] (2)_merged-158.pdf": [
+  "General Regions"
+ ],
+ "Calculus[1] (2)_merged-159.pdf": [
+  "Changing the Order of Integration",
+  "Properties of Double Integrals",
+  "Review of Polar Coordinates"
+ ],
+ "Calculus[1] (2)_merged-160.pdf": [
+  "Double Integrals in Polar Coordinates",
+  "Density and Mass"
+ ],
+ "Calculus[1] (2)_merged-161.pdf": [
+  "Moments and Centers of Mass",
+  "Moment of Inertia",
+  "Probability"
+ ],
+ "Calculus[1] (2)_merged-162.pdf": [
+  "Expected Values"
+ ],
+ "Calculus[1] (2)_merged-163.pdf": [
+  "Triple Integrals over Rectangular Boxes",
+  "Triple Integrals over General Regions"
+ ],
+ "Calculus[1] (2)_merged-164.pdf": [
+  "Changing the Order of Integration",
+  "Applications of Triple Integrals"
+ ],
+ "Calculus[1] (2)_merged-165.pdf": [
+  "Cylindrical Coordinates",
+  "Triple Integrals in Cylindrical Coordinates"
+ ],
+ "Calculus[1] (2)_merged-166.pdf": [
+  "Spherical Coordinates",
+  "Triple Integrals in Spherical Coordinates"
+ ],
+ "Calculus[1] (2)_merged-167.pdf": [
+  "Change of Variables in Double Integrals"
+ ],
+ "Calculus[1] (2)_merged-168.pdf": [
+  "Change of Variables in Triple Integrals",
+  "Vector Fields in"
+ ],
+ "Calculus[1] (2)_merged-169.pdf": [
+  "Gradient Fields"
+ ],
+ "Calculus[1] (2)_merged-170.pdf": [
+  "Line Integrals in the Plane"
+ ],
+ "Calculus[1] (2)_merged-171.pdf": [
+  "Line Integrals with Respect to",
+  "Line Integrals in Space",
+  "Line Integrals of Vector Fields; Work"
+ ],
+ "Calculus[1] (2)_merged-172.pdf": [
+  "The Fundamental Theorem for Line Integrals",
+  "Independence of Path"
+ ],
+ "Calculus[1] (2)_merged-173.pdf": [
+  "Conservative Vector Fields and Potential Functions",
+  "Conservation of Energy"
+ ],
+ "Calculus[1] (2)_merged-174.pdf": [
+  "Green’s Theorem",
+  "Finding Areas with Green's Theorem",
+  "Extended Versions of Green’s Theorem"
+ ],
+ "Calculus[1] (2)_merged-175.pdf": [
+  "Curl"
+ ],
+ "Calculus[1] (2)_merged-176.pdf": [
+  "Divergence",
+  "Vector Forms of Green’s Theorem",
+  "Parametric Surfaces"
+ ],
+ "Calculus[1] (2)_merged-177.pdf": [
+  "Surfaces of Revolution",
+  "Tangent Planes"
+ ],
+ "Calculus[1] (2)_merged-178.pdf": [
+  "Surface Area",
+  "Surface Area of the Graph of a Function"
+ ],
+ "Calculus[1] (2)_merged-179.pdf": [
+  "Parametric Surfaces",
+  "Graphs of Functions"
+ ],
+ "Calculus[1] (2)_merged-180.pdf": [
+  "Oriented Surfaces",
+  "Surface Integrals of Vector Fields; Flux"
+ ],
+ "Calculus[1] (2)_merged-181.pdf": [],
+ "Calculus[1] (2)_merged-182.pdf": [],
+ "Calculus[1] (2)_merged-183.pdf": [],
+ "Calculus[1] (2)_merged-184.pdf": [
+  "Intervals",
+  "Inequalities",
+  "Absolute Value"
+ ],
+ "Calculus[1] (2)_merged-185.pdf": [
+  "Lines"
+ ],
+ "Calculus[1] (2)_merged-186.pdf": [
+  "Parallel and Perpendicular Lines",
+  "Circles"
+ ],
+ "Calculus[1] (2)_merged-187.pdf": [
+  "Parabolas",
+  "Ellipses",
+  "Hyperbolas",
+  "Shifted Conics"
+ ],
+ "Calculus[1] (2)_merged-188.pdf": [
+  "Angles",
+  "The Trigonometric Functions"
+ ],
+ "Calculus[1] (2)_merged-189.pdf": [
+  "Trigonometric Identities",
+  "The Law of Sines and the Law of Cosines",
+  "Graphs of the Trigonometric Functions"
+ ],
+ "Calculus[1] (2)_merged-190.pdf": [],
+ "Calculus[1] (2)_merged-191.pdf": [],
+ "Calculus[1] (2)_merged-192.pdf": [],
+ "Calculus[1] (3).pdf": [
+  "Logarithmic Functions and Their Properties",
+  "The Natural Logarithmic Function",
+  "Graph and Growth of the Natural Logarithm Function"
+ ],
+ "Calculus[1] (4).pdf": [],
+ "Calculus[1]-1281.pdf": []
+}
