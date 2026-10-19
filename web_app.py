@@ -96,20 +96,6 @@ def save_record(question: str, answer: str, source: str) -> None:
         )
 
 
-def build_messages(question: str) -> list[dict[str, str]]:
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    # 示範回答不帶入模型
-    for record in get_history(limit=10):
-        if record["answer_source"] == "ollama":
-            messages.extend(
-                [
-                    {"role": "user", "content": record["question"]},
-                    {"role": "assistant", "content": record["answer"]},
-                ]
-            )
-    messages.append({"role": "user", "content": question})
-    return messages
-
 
 def friendly_ollama_error(error: Exception) -> str:
     if isinstance(error, HTTPError):
@@ -119,14 +105,14 @@ def friendly_ollama_error(error: Exception) -> str:
     return "Ollama 回覆格式異常，請稍後再試。"
 
 
-def call_ollama(messages: list[dict[str, str]]) -> str:
-    payload = json.dumps({"model": OLLAMA_MODEL, "messages": messages, "stream": False}).encode()
-    request = Request(OLLAMA_URL, data=payload, headers={"Content-Type": "application/json"})
-    with urlopen(request, timeout=60) as response:
-        data = json.loads(response.read().decode("utf-8"))
-    answer = data.get("message", {}).get("content", "").strip()
+def call_ollama(question: str) -> str:
+    # 匯入main_rag.py 寫好的 LCEL 檢索鏈
+    from tutor.main_rag import rag_chain
+
+    answer = rag_chain.invoke(question)
+    
     if not answer:
-        raise ValueError("empty Ollama response")
+        raise ValueError("沒有收到 AI 的回覆")
     return answer
 
 
@@ -139,11 +125,13 @@ def answer_question(question: str) -> dict:
     if not question:
         raise ValueError("問題不可空白")
     try:
-        answer = call_ollama(build_messages(question))
+        # 直接把使用者的問題傳給 call_ollama 處理
+        answer = call_ollama(question)
         source, notice = "ollama", None
-    except (HTTPError, URLError, ValueError, json.JSONDecodeError) as error:
+    except Exception as error:  # 把攔截的範圍擴大，捕捉 LangChain 可能的錯誤
         answer = demo_answer(question)
         source, notice = "demo", friendly_ollama_error(error)
+        
     save_record(question, answer, source)
     return {"question": question, "answer": answer, "source": source, "notice": notice}
 
@@ -151,12 +139,55 @@ def answer_question(question: str) -> dict:
 PAGE = r"""<!doctype html>
 <html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>微積分助教</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem;white-space:pre-wrap}.user{font-weight:bold}.assistant{margin:0 0 1rem}.demo{color:#8a5500}form{display:flex;gap:.5rem}input{flex:1;padding:.65rem}button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}</style>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.6}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem}.user{font-weight:700;color:#0056b3;margin-top:1rem}.assistant{margin:0 0 1.5rem}.assistant h1,.assistant h2,.assistant h3{line-height:1.25;margin:1rem 0 .45rem}.assistant p{margin:.45rem 0}.assistant ul,.assistant ol{margin:.4rem 0;padding-left:1.6rem}.assistant blockquote{margin:.6rem 0;padding:.1rem .8rem;border-left:3px solid #bbb;color:#444}.assistant code{font-family:ui-monospace,Consolas,monospace;background:#f1f1f1;padding:.1rem .3rem;border-radius:3px}.assistant pre{overflow:auto;background:#f1f1f1;padding:.8rem;border-radius:4px}.assistant pre code{padding:0;background:none}.assistant a{color:#0655ad}.demo{color:#8a5500}form{display:flex;gap:.5rem}input{flex:1;padding:.65rem}button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}</style>
+
+<!-- 1. 引入 MathJax 來渲染數學公式 -->
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 <h1>微積分助教</h1><div id="chat" aria-live="polite">載入歷史紀錄中…</div>
 <form id="form"><input id="question" required placeholder="輸入你的問題" aria-label="問題"><button>送出</button></form><p id="status"></p>
 <script>
 const chat=document.querySelector('#chat'), form=document.querySelector('#form'), input=document.querySelector('#question'), status=document.querySelector('#status');
-function add(record){const q=document.createElement('div');q.className='user';q.textContent='你：'+record.question;const a=document.createElement('div');a.className='assistant '+(record.answer_source=== 'demo'||record.source==='demo'?'demo':'');a.textContent=(record.answer_source=== 'demo'||record.source==='demo'?'示範回覆：':'Ollama：')+record.answer;chat.append(q,a);chat.scrollTop=chat.scrollHeight}
+function escapeHtml(text){const box=document.createElement('span');box.textContent=text;return box.innerHTML}
+function renderInline(text){
+  const codes=[];let html=escapeHtml(text).replace(/`([^`]+)`/g,(_,code)=>`\u0000${codes.push(code)-1}\u0000`);
+  html=html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  html=html.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<strong>$1</strong>');
+  html=html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g,'<em>$1</em>').replace(/(?<!_)_([^_]+)_(?!_)/g,'<em>$1</em>');
+  return html.replace(/\u0000(\d+)\u0000/g,(_,index)=>`<code>${codes[index]}</code>`);
+}
+function renderMarkdown(markdown){
+  const lines=String(markdown||'').replace(/\r\n?/g,'\n').split('\n');let html='',list=null,code=null;
+  const closeList=()=>{if(list){html+=`</${list}>`;list=null}};
+  for(const line of lines){
+    if(line.startsWith('```')){closeList();if(code===null){code=[]}else{html+=`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`;code=null}continue}
+    if(code!==null){code.push(line);continue}
+    if(!line.trim()){closeList();continue}
+    const heading=line.match(/^(#{1,6})\s+(.+)$/);const unordered=line.match(/^[-*+]\s+(.+)$/);const ordered=line.match(/^\d+[.)]\s+(.+)$/);
+    if(heading){closeList();const level=heading[1].length;html+=`<h${level}>${renderInline(heading[2])}</h${level}>`;continue}
+    if(/^[-*_]{3,}\s*$/.test(line)){closeList();html+='<hr>';continue}
+    if(line.startsWith('> ')){closeList();html+=`<blockquote>${renderInline(line.slice(2))}</blockquote>`;continue}
+    if(unordered||ordered){const tag=unordered?'ul':'ol';if(list!==tag){closeList();list=tag;html+=`<${tag}>`}html+=`<li>${renderInline((unordered||ordered)[1])}</li>`;continue}
+    closeList();html+=`<p>${renderInline(line)}</p>`;
+  }
+  closeList();if(code!==null)html+=`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`;return html;
+}
+function add(record){
+    const q=document.createElement('div');q.className='user';q.textContent='你：'+record.question;
+    const a=document.createElement('div');a.className='assistant '+(record.answer_source=== 'demo'||record.source==='demo'?'demo':'');
+    const label=record.answer_source=== 'demo'||record.source==='demo'?'示範回覆':'Ollama 回覆';
+    a.innerHTML=`<strong>${label}</strong>${renderMarkdown(record.answer)}`;
+    chat.append(q,a);
+    chat.scrollTop=chat.scrollHeight;
+    
+    // 2. 每次有新訊息加入時，呼叫 MathJax 重新渲染該段落的數學公式
+    if(window.MathJax) MathJax.typesetPromise([a]);
+}
 fetch('/api/history').then(r=>r.json()).then(rows=>{chat.textContent='';rows.forEach(add)}).catch(()=>chat.textContent='歷史紀錄載入失敗。');
 form.addEventListener('submit',async e=>{e.preventDefault();const question=input.value.trim();if(!question)return;input.disabled=true;form.querySelector('button').disabled=true;status.textContent='正在送往 Ollama…';try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});const data=await r.json();if(!r.ok)throw new Error(data.error||'送出失敗');add(data);input.value='';status.textContent=data.notice||'已收到 Ollama 回覆。'}catch(err){status.textContent=err.message}finally{input.disabled=false;form.querySelector('button').disabled=false;input.focus()}});
 </script></html>"""

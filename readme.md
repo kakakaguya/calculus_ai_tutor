@@ -5,7 +5,12 @@
 ## 環境需求
 
 - Python 3.10+
-- [Ollama](https://ollama.com)，並下載模型：`ollama pull qwen3:8b`
+- [Ollama](https://ollama.com)，並下載模型：
+
+  ```bash
+  ollama pull qwen3:8b
+  ollama pull nomic-embed-text
+  ```
 
 ## 安裝
 
@@ -16,6 +21,12 @@ pip install -r requirement.txt
 ```
 
 ## 使用
+
+第一次使用前，先建立向量資料庫（存到 `database/chroma_db/`）：
+
+```bash
+python -m ingestion.build_vector_db
+```
 
 ```bash
 python web_app.py                  # 網頁介面，開啟 http://127.0.0.1:8000
@@ -59,7 +70,7 @@ rag/
 ├── web_app.py          網頁介面
 ├── tutor/              助教問答
 ├── ingestion/          PDF 轉換、清理、切塊
-├── database/           建立資料庫的程式與 SQLite 資料庫
+├── database/           SQLite 資料庫與 ChromaDB 向量資料庫
 ├── tests/              測試
 └── data/               教材資料（不進 git）
     ├── raw/            原始課本 PDF
