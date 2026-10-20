@@ -1,8 +1,9 @@
 """
-讀取已 Chunking 的 Markdown 檔案，透過 Ollama 建立向量並存入 ChromaDB。
+讀取已切割好的 chunks.jsonl，透過 Ollama 建立向量並存入 ChromaDB。
 執行方式（在專案根目錄）：python -m rag.ingestion.build_vector_db
 """
 
+import json
 from pathlib import Path
 from langchain_core.documents import Document
 from langchain_ollama import OllamaEmbeddings
@@ -10,35 +11,58 @@ from langchain_chroma import Chroma
 
 # 設定路徑
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CHUNKED_DIR = PROJECT_ROOT / "data" / "markdown"
+CHUNKS_FILE = PROJECT_ROOT / "data" / "chunks.jsonl"
 CHROMA_DB_DIR = PROJECT_ROOT / "database" / "chroma_db"
 
+
 def load_documents() -> list[Document]:
+    """讀取 chunks.jsonl，每一行轉成一個 Document，保留章節與類型等 metadata。"""
     docs = []
-    if not CHUNKED_DIR.exists():
-        print(f" 找不到目錄：{CHUNKED_DIR}")
+    if not CHUNKS_FILE.exists():
+        print(f" 找不到檔案：{CHUNKS_FILE}")
+        print(" 請先執行 chunk_markdown.py 產生 chunks.jsonl")
         return docs
 
-    # 讀取所有 .md 檔案
-    # 假設每一個 chunk 已經是一個獨立的 .md 檔，或者長度已經適合檢索
-    for filepath in CHUNKED_DIR.rglob("*.md"):
-        content = filepath.read_text(encoding="utf-8").strip()
-        if not content:
-            continue
-            
-        # 建立 Document 並放入 metadata，這在之後回答標示「資料來源」時用
-        doc = Document(
-            page_content=content,
-            metadata={"source": filepath.name}
-        )
-        docs.append(doc)
-    
+    with CHUNKS_FILE.open(encoding="utf-8") as f:
+        for line_number, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as error:
+                print(f" 第 {line_number} 行 JSON 解析失敗，已跳過：{error}")
+                continue
+
+            text = record.get("text", "").strip()
+            if not text:
+                continue
+
+            # metadata 保留切割時標記好的資訊，之後可用來：
+            # 1. 檢索時依 kind（例如只找 example）做篩選
+            # 2. 回答時標示「這段資料來自第 X 節」
+            # 3. 寫入資料庫 qa_records.material_id 時，用來對應教材來源
+            doc = Document(
+                page_content=text,
+                metadata={
+                    "chunk_id": record.get("id"),
+                    "index": record.get("index"),
+                    "kind": record.get("kind"),
+                    "part": record.get("part"),
+                    "section": record.get("section"),
+                    "section_title": record.get("section_title"),
+                    "source_files": ",".join(record.get("source_files", [])),
+                },
+            )
+            docs.append(doc)
+
     return docs
 
+
 def main():
-    print("開始載入 Markdown 檔案...")
+    print("開始載入 chunks.jsonl...")
     documents = load_documents()
-    
+
     if not documents:
         print("沒有找到任何文件，程式結束。")
         return
@@ -53,10 +77,11 @@ def main():
     vectorstore = Chroma.from_documents(
         documents=documents,
         embedding=embeddings,
-        persist_directory=str(CHROMA_DB_DIR)
+        persist_directory=str(CHROMA_DB_DIR),
     )
 
     print(f" 向量資料庫建立完成！已儲存至：{CHROMA_DB_DIR}")
+
 
 if __name__ == "__main__":
     main()
