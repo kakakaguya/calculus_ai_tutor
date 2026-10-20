@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("CALCULUS_TUTOR_DB", BASE_DIR / "database" / "calculus_tutor.db"))
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:8b")
-SYSTEM_PROMPT = "你是一位專業的微積分助教，請使用繁體中文簡潔回答。"
+SYSTEM_PROMPT = "你是一位專業的微積分助教，請務必使用繁體中文並簡潔回答。"
 
 
 def connect_db() -> sqlite3.Connection:
@@ -162,9 +162,18 @@ function renderInline(text){
   return html.replace(/\u0000(\d+)\u0000/g,(_,index)=>`<code>${codes[index]}</code>`);
 }
 function renderMarkdown(markdown){
-  const lines=String(markdown||'').replace(/\r\n?/g,'\n').split('\n');let html='',list=null,code=null;
+  const lines=String(markdown||'').replace(/\r\n?/g,'\n').split('\n');let html='',list=null,code=null,math=null;
   const closeList=()=>{if(list){html+=`</${list}>`;list=null}};
   for(const line of lines){
+    // 新增：$$ 開頭的多行公式區塊，先整段收集起來，不要逐行拆成獨立段落，
+    // 否則 MathJax 找不到成對的 $$ ... $$，公式就無法被渲染。
+    if(line.trim()==='$$'){
+      closeList();
+      if(math===null){math=[]}
+      else{html+=`<p>$$${escapeHtml(math.join('\n'))}$$</p>`;math=null}
+      continue;
+    }
+    if(math!==null){math.push(line);continue}
     if(line.startsWith('```')){closeList();if(code===null){code=[]}else{html+=`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`;code=null}continue}
     if(code!==null){code.push(line);continue}
     if(!line.trim()){closeList();continue}
@@ -175,7 +184,11 @@ function renderMarkdown(markdown){
     if(unordered||ordered){const tag=unordered?'ul':'ol';if(list!==tag){closeList();list=tag;html+=`<${tag}>`}html+=`<li>${renderInline((unordered||ordered)[1])}</li>`;continue}
     closeList();html+=`<p>${renderInline(line)}</p>`;
   }
-  closeList();if(code!==null)html+=`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`;return html;
+  closeList();
+  if(code!==null)html+=`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`;
+  // 新增：如果公式區塊到檔案結尾都還沒遇到結束的 $$，也要把收集到的內容印出來，避免整段消失。
+  if(math!==null)html+=`<p>$$${escapeHtml(math.join('\n'))}$$</p>`;
+  return html;
 }
 function add(record){
     const q=document.createElement('div');q.className='user';q.textContent='你：'+record.question;
