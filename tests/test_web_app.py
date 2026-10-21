@@ -8,6 +8,8 @@ from http.server import ThreadingHTTPServer
 from urllib.request import Request, urlopen
 import json
 
+from tutor.main_rag import TutorAnswer
+
 
 class WebAppTests(unittest.TestCase):
     def setUp(self):
@@ -37,7 +39,7 @@ class WebAppTests(unittest.TestCase):
         self.tempdir.cleanup()
 
     def test_ollama_answer_is_saved(self):
-        with patch.object(self.app, "call_ollama", return_value="這是真實回答"):
+        with patch.object(self.app, "call_ollama", return_value=TutorAnswer("這是真實回答", ())):
             result = self.app.answer_question("什麼是極限？")
         self.assertEqual(result["source"], "ollama")
         self.assertEqual(self.app.get_history()[0]["answer"], "這是真實回答")
@@ -50,6 +52,27 @@ class WebAppTests(unittest.TestCase):
         self.assertIn("無法連線", result["notice"])
         self.assertEqual(self.app.get_history()[0]["answer_source"], "demo")
 
+    def test_missing_vector_database_message_is_shown(self):
+        error = RuntimeError("向量資料庫不存在，請先執行 python -m ingestion.build_vector_db")
+        with patch.object(self.app, "call_ollama", side_effect=error):
+            result = self.app.answer_question("測試問題")
+        self.assertEqual(result["source"], "demo")
+        self.assertIn("build_vector_db", result["notice"])
+
+    def test_sources_are_returned_and_kept_in_history(self):
+        sources = ({"number": 1, "type": "教材", "label": "6.8 L'Hospital's Rule", "chunk_id": "c1"},)
+        with patch.object(self.app, "call_ollama", return_value=TutorAnswer("答［1］", sources)):
+            result = self.app.answer_question("羅必達法則？")
+        self.assertEqual(result["sources"], list(sources))
+        self.assertEqual(self.app.get_history()[0]["sources"], list(sources))
+
+    def test_demo_answer_has_no_sources(self):
+        from urllib.error import URLError
+        with patch.object(self.app, "call_ollama", side_effect=URLError("refused")):
+            result = self.app.answer_question("測試問題")
+        self.assertEqual(result["sources"], [])
+        self.assertEqual(self.app.get_history()[0]["sources"], [])
+
     def test_blank_question_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "不可空白"):
             self.app.answer_question("   ")
@@ -61,7 +84,7 @@ class WebAppTests(unittest.TestCase):
             data=json.dumps({"question": "HTTP 測試"}).encode(),
             headers={"Content-Type": "application/json"},
         )
-        with patch.object(self.app, "call_ollama", return_value="API 回答"):
+        with patch.object(self.app, "call_ollama", return_value=TutorAnswer("API 回答", ())):
             with urlopen(request) as response:
                 chat = json.loads(response.read().decode())
         with urlopen(base_url + "/api/history") as response:
@@ -77,7 +100,7 @@ class WebAppTests(unittest.TestCase):
             data=json.dumps({"question": question}, ensure_ascii=False).encode("utf-8"),
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
-        with patch.object(self.app, "call_ollama", return_value="\\(1/3\\)") as call:
+        with patch.object(self.app, "call_ollama", return_value=TutorAnswer("\\(1/3\\)", ())) as call:
             with urlopen(request) as response:
                 chat = json.loads(response.read().decode("utf-8"))
         self.assertEqual(call.call_args.args[0], question)
@@ -92,6 +115,7 @@ class WebAppTests(unittest.TestCase):
         self.assertIn('insertText(button.dataset.latex)', page)
         self.assertIn('textContent=', page)
         self.assertIn('MathJax.typesetPromise', page)
+        self.assertIn('renderSources', page)
 
 
 if __name__ == "__main__":

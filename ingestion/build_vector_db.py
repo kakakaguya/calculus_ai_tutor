@@ -1,87 +1,100 @@
-"""
-讀取已切割好的 chunks.jsonl，透過 Ollama 建立向量並存入 ChromaDB。
-執行方式（在專案根目錄）：python -m rag.ingestion.build_vector_db
+"""data/segments.jsonl → Chroma vectors (database/chroma_db) via Ollama embeddings.
+
+Each run rebuilds the collection from scratch, with segment ids as Chroma ids, so the
+index always matches segments.jsonl. Run from the project root:
+    python -m ingestion.build_vector_db
 """
 
+import argparse
 import json
+import logging
 from pathlib import Path
+from typing import Protocol
+
 from langchain_core.documents import Document
-from langchain_ollama import OllamaEmbeddings
-from langchain_chroma import Chroma
 
-# 設定路徑
+from tutor.vector_store import CHROMA_DB_DIR, COLLECTION_NAME, EMBED_MODEL, open_vector_store
+
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CHUNKS_FILE = PROJECT_ROOT / "data" / "chunks.jsonl"
-CHROMA_DB_DIR = PROJECT_ROOT / "database" / "chroma_db"
+DEFAULT_SEGMENTS = PROJECT_ROOT / "data" / "segments.jsonl"
+BATCH_SIZE = 64
+REQUIRED_FIELDS = ("id", "chunk_id", "kind", "embed_text")
+METADATA_FIELDS = (
+    "chunk_id", "parent_id", "kind", "part", "section", "section_title", "subheading",
+    "example_label", "position", "segment_count", "header",
+)
+
+logger = logging.getLogger(__name__)
 
 
-def load_documents() -> list[Document]:
-    """讀取 chunks.jsonl，每一行轉成一個 Document，保留章節與類型等 metadata。"""
-    docs = []
-    if not CHUNKS_FILE.exists():
-        print(f" 找不到檔案：{CHUNKS_FILE}")
-        print(" 請先執行 chunk_markdown.py 產生 chunks.jsonl")
-        return docs
+class VectorStore(Protocol):
+    def reset_collection(self) -> None: ...
 
-    with CHUNKS_FILE.open(encoding="utf-8") as f:
-        for line_number, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError as error:
-                print(f" 第 {line_number} 行 JSON 解析失敗，已跳過：{error}")
-                continue
-
-            text = record.get("text", "").strip()
-            if not text:
-                continue
-
-            # metadata 保留切割時標記好的資訊，之後可用來：
-            # 1. 檢索時依 kind（例如只找 example）做篩選
-            # 2. 回答時標示「這段資料來自第 X 節」
-            # 3. 寫入資料庫 qa_records.material_id 時，用來對應教材來源
-            doc = Document(
-                page_content=text,
-                metadata={
-                    "chunk_id": record.get("id"),
-                    "index": record.get("index"),
-                    "kind": record.get("kind"),
-                    "part": record.get("part"),
-                    "section": record.get("section"),
-                    "section_title": record.get("section_title"),
-                    "source_files": ",".join(record.get("source_files", [])),
-                },
-            )
-            docs.append(doc)
-
-    return docs
+    def add_documents(self, documents: list[Document], ids: list[str]) -> object: ...
 
 
-def main():
-    print("開始載入 chunks.jsonl...")
-    documents = load_documents()
+def load_segments(path: Path) -> list[dict]:
+    if not path.exists():
+        raise FileNotFoundError(f"找不到 {path}，請先執行 python -m ingestion.build_segments")
+    segments: list[dict] = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            segment = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise ValueError(f"{path} 第 {line_number} 行不是合法 JSON：{error.msg}") from error
+        missing = [field for field in REQUIRED_FIELDS if field not in segment]
+        if missing:
+            raise ValueError(f"{path} 第 {line_number} 行缺少欄位：{', '.join(missing)}")
+        segments.append(segment)
+    return segments
 
-    if not documents:
-        print("沒有找到任何文件，程式結束。")
-        return
 
-    print(f" 共載入 {len(documents)} 個文字區塊。")
-    print(" 正在呼叫 Ollama (nomic-embed-text) 計算向量並寫入 ChromaDB，這可能需要幾分鐘...")
+def to_metadata(segment: dict) -> dict:
+    """Chroma accepts only non-empty scalar metadata values."""
+    return {
+        field: segment[field]
+        for field in METADATA_FIELDS
+        if isinstance(segment.get(field), (str, int, float, bool)) and segment[field] != ""
+    }
 
-    # 指定使用 nomic-embed-text 作為 Embedding 模型
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
-    # 建立向量資料庫並持久化儲存
-    vectorstore = Chroma.from_documents(
-        documents=documents,
-        embedding=embeddings,
-        persist_directory=str(CHROMA_DB_DIR),
-    )
+def to_document(segment: dict) -> Document:
+    return Document(page_content=segment["embed_text"], metadata=to_metadata(segment))
 
-    print(f" 向量資料庫建立完成！已儲存至：{CHROMA_DB_DIR}")
+
+def build_index(store: VectorStore, segments: list[dict], batch_size: int = BATCH_SIZE) -> None:
+    store.reset_collection()
+    for start in range(0, len(segments), batch_size):
+        batch = segments[start:start + batch_size]
+        store.add_documents([to_document(segment) for segment in batch],
+                            ids=[segment["id"] for segment in batch])
+        logger.info("已寫入 %s / %s 個片段", start + len(batch), len(segments))
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="把 segments.jsonl 轉成向量寫入 ChromaDB")
+    parser.add_argument("--segments", type=Path, default=DEFAULT_SEGMENTS)
+    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
+    args = parser.parse_args(argv)
+    if args.batch_size <= 0:
+        parser.error("--batch-size 必須大於 0")
+
+    try:
+        segments = load_segments(args.segments)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    if not segments:
+        parser.error(f"{args.segments} 沒有任何片段")
+
+    logger.info("用 %s 計算 %s 個片段的向量，寫入 %s（collection：%s）",
+                EMBED_MODEL, len(segments), CHROMA_DB_DIR, COLLECTION_NAME)
+    build_index(open_vector_store(), segments, args.batch_size)
+    logger.info("向量資料庫建立完成")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     main()

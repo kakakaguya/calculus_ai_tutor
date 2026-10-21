@@ -8,3 +8,4 @@ __pycache__/
 data/
 chroma_db/
 database/calculus_tutor.db
+.coverage

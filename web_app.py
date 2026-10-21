@@ -37,6 +37,9 @@ def initialize_database() -> None:
             conn.execute(
                 "ALTER TABLE qa_records ADD COLUMN answer_source TEXT NOT NULL DEFAULT 'ollama'"
             )
+        if "sources" not in columns:
+            # 回答引用的教材，存成 JSON 陣列；舊紀錄沒有來源，預設為空陣列
+            conn.execute("ALTER TABLE qa_records ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'")
 
         guest = conn.execute(
             "SELECT user_id FROM users WHERE username = ? ORDER BY user_id LIMIT 1", ("Guest",)
@@ -75,7 +78,7 @@ def get_history(limit: int | None = None) -> list[dict]:
     with connect_db() as conn:
         conversation_id = guest_conversation_id(conn)
         sql = (
-            "SELECT question, answer, answer_source, created_at FROM qa_records "
+            "SELECT question, answer, answer_source, sources, created_at FROM qa_records "
             "WHERE conversation_id = ? ORDER BY record_id DESC"
         )
         params: list[object] = [conversation_id]
@@ -84,20 +87,31 @@ def get_history(limit: int | None = None) -> list[dict]:
             params.append(limit)
         rows = list(conn.execute(sql, params))
     rows.reverse()
-    return [dict(row) for row in rows]
+    return [{**dict(row), "sources": parse_sources(row["sources"])} for row in rows]
 
 
-def save_record(question: str, answer: str, source: str) -> None:
+def parse_sources(raw: str | None) -> list[dict]:
+    try:
+        sources = json.loads(raw or "[]")
+    except json.JSONDecodeError:
+        return []
+    return sources if isinstance(sources, list) else []
+
+
+def save_record(question: str, answer: str, source: str, sources: list[dict]) -> None:
     with connect_db() as conn:
         conn.execute(
-            "INSERT INTO qa_records (conversation_id, question, answer, answer_source) "
-            "VALUES (?, ?, ?, ?)",
-            (guest_conversation_id(conn), question, answer, source),
+            "INSERT INTO qa_records (conversation_id, question, answer, answer_source, sources) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (guest_conversation_id(conn), question, answer, source,
+             json.dumps(sources, ensure_ascii=False)),
         )
 
 
 
 def friendly_ollama_error(error: Exception) -> str:
+    if isinstance(error, (RuntimeError, FileNotFoundError)):
+        return str(error)  # 向量資料庫或文字塊尚未建立，訊息裡有下一步該執行的指令
     if isinstance(error, HTTPError):
         return f"Ollama 回傳 HTTP {error.code}；請確認模型 {OLLAMA_MODEL} 已下載。"
     if isinstance(error, URLError):
@@ -105,15 +119,12 @@ def friendly_ollama_error(error: Exception) -> str:
     return "Ollama 回覆格式異常，請稍後再試。"
 
 
-def call_ollama(question: str) -> str:
-    # 匯入main_rag.py 寫好的 LCEL 檢索鏈
-    from tutor.main_rag import rag_chain
+def call_ollama(question: str):
+    """回傳 TutorAnswer：回答內容與引用的教材來源。"""
+    # 從 Chroma 檢索教材後交給 Ollama 回答（第一次呼叫時才開啟向量資料庫）
+    from tutor.main_rag import ask
 
-    answer = rag_chain.invoke(question)
-    
-    if not answer:
-        raise ValueError("沒有收到 AI 的回覆")
-    return answer
+    return ask(question)
 
 
 def demo_answer(question: str) -> str:
@@ -126,20 +137,22 @@ def answer_question(question: str) -> dict:
         raise ValueError("問題不可空白")
     try:
         # 直接把使用者的問題傳給 call_ollama 處理
-        answer = call_ollama(question)
+        result = call_ollama(question)
+        answer, sources = result.answer, list(result.sources)
         source, notice = "ollama", None
     except Exception as error:  # 把攔截的範圍擴大，捕捉 LangChain 可能的錯誤
-        answer = demo_answer(question)
+        answer, sources = demo_answer(question), []
         source, notice = "demo", friendly_ollama_error(error)
-        
-    save_record(question, answer, source)
-    return {"question": question, "answer": answer, "source": source, "notice": notice}
+
+    save_record(question, answer, source, sources)
+    return {"question": question, "answer": answer, "source": source, "sources": sources,
+            "notice": notice}
 
 
 PAGE = r"""<!doctype html>
 <html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>微積分助教</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.6}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem}.user{font-weight:700;color:#0056b3;margin-top:1rem;white-space:pre-wrap}.assistant{margin:0 0 1.5rem}.assistant h1,.assistant h2,.assistant h3{line-height:1.25;margin:1rem 0 .45rem}.assistant p{margin:.45rem 0}.assistant ul,.assistant ol{margin:.4rem 0;padding-left:1.6rem}.assistant blockquote{margin:.6rem 0;padding:.1rem .8rem;border-left:3px solid #bbb;color:#444}.assistant code{font-family:ui-monospace,Consolas,monospace;background:#f1f1f1;padding:.1rem .3rem;border-radius:3px}.assistant pre{overflow:auto;background:#f1f1f1;padding:.8rem;border-radius:4px}.assistant pre code{padding:0;background:none}.assistant a{color:#0655ad}.demo{color:#8a5500}.toolbar{display:flex;flex-wrap:wrap;gap:.35rem;margin:.5rem 0}.toolbar button{padding:.35rem .55rem}.composer{min-height:5.2rem;border:1px solid #999;border-radius:4px;padding:.65rem;white-space:pre-wrap;overflow-wrap:anywhere}.composer:empty:before{content:attr(data-placeholder);color:#777}.formula{display:inline-flex;align-items:center;gap:.2rem;vertical-align:middle;margin:.15rem;padding:.25rem;border:1px solid #7795bc;border-radius:4px;background:#f4f8ff;white-space:normal}.formula input{width:4.5rem;padding:.25rem;border:1px solid #9aa}.formula .integrand{width:7rem}.formula button{padding:.15rem .35rem}.composer-form{display:flex;gap:.5rem;align-items:flex-start}.composer-form .composer{flex:1}.composer-form>button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}@media(max-width:480px){body{margin:1rem auto}.composer-form{flex-direction:column}.composer-form>button{width:100%}.formula{flex-wrap:wrap}.formula input{min-width:3.5rem}.toolbar{max-height:8rem;overflow:auto}}</style>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.6}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem}.user{font-weight:700;color:#0056b3;margin-top:1rem;white-space:pre-wrap}.assistant{margin:0 0 1.5rem}.assistant h1,.assistant h2,.assistant h3{line-height:1.25;margin:1rem 0 .45rem}.assistant p{margin:.45rem 0}.assistant ul,.assistant ol{margin:.4rem 0;padding-left:1.6rem}.assistant blockquote{margin:.6rem 0;padding:.1rem .8rem;border-left:3px solid #bbb;color:#444}.assistant code{font-family:ui-monospace,Consolas,monospace;background:#f1f1f1;padding:.1rem .3rem;border-radius:3px}.assistant pre{overflow:auto;background:#f1f1f1;padding:.8rem;border-radius:4px}.assistant pre code{padding:0;background:none}.assistant a{color:#0655ad}.demo{color:#8a5500}.toolbar{display:flex;flex-wrap:wrap;gap:.35rem;margin:.5rem 0}.toolbar button{padding:.35rem .55rem}.composer{min-height:5.2rem;border:1px solid #999;border-radius:4px;padding:.65rem;white-space:pre-wrap;overflow-wrap:anywhere}.composer:empty:before{content:attr(data-placeholder);color:#777}.formula{display:inline-flex;align-items:center;gap:.2rem;vertical-align:middle;margin:.15rem;padding:.25rem;border:1px solid #7795bc;border-radius:4px;background:#f4f8ff;white-space:normal}.formula input{width:4.5rem;padding:.25rem;border:1px solid #9aa}.formula .integrand{width:7rem}.formula button{padding:.15rem .35rem}.composer-form{display:flex;gap:.5rem;align-items:flex-start}.composer-form .composer{flex:1}.composer-form>button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}.sources{margin:.6rem 0 0;padding:.5rem .8rem;border-left:3px solid #7795bc;background:#f6f8fb;font-size:.9rem;color:#333}.sources ol{margin:.25rem 0 0;padding-left:0;list-style:none}@media(max-width:480px){body{margin:1rem auto}.composer-form{flex-direction:column}.composer-form>button{width:100%}.formula{flex-wrap:wrap}.formula input{min-width:3.5rem}.toolbar{max-height:8rem;overflow:auto}}</style>
 
 <!-- 1. 引入 MathJax 來渲染數學公式 -->
 <script>
@@ -203,11 +216,16 @@ function renderMarkdown(markdown){
   if(math!==null)html+=`<p>$$${escapeHtml(math.join('\n'))}$$</p>`;
   return html;
 }
+function renderSources(sources){
+  if(!Array.isArray(sources)||!sources.length)return '';
+  const items=sources.map(s=>`<li>［${escapeHtml(String(s.number))}］${escapeHtml(s.label||'')}</li>`).join('');
+  return `<div class="sources"><strong>資料來源</strong><ol>${items}</ol></div>`;
+}
 function add(record){
     const q=document.createElement('div');q.className='user';q.textContent='你：'+record.question;
     const a=document.createElement('div');a.className='assistant '+(record.answer_source=== 'demo'||record.source==='demo'?'demo':'');
     const label=record.answer_source=== 'demo'||record.source==='demo'?'示範回覆':'Ollama 回覆';
-    a.innerHTML=`<strong>${label}</strong>${renderMarkdown(record.answer)}`;
+    a.innerHTML=`<strong>${label}</strong>${renderMarkdown(record.answer)}${renderSources(record.sources)}`;
     chat.append(q,a);
     chat.scrollTop=chat.scrollHeight;
     
