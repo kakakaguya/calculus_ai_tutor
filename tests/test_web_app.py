@@ -69,6 +69,30 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(chat["source"], "ollama")
         self.assertEqual(history[-1]["question"], "HTTP 測試")
 
+    def test_latex_and_newlines_are_sent_and_saved_verbatim(self):
+        base_url = f"http://127.0.0.1:{self.server.server_port}"
+        question = "請計算：\n\\int_{0}^{1} x^2 \\, dx\n結果為何？"
+        request = Request(
+            base_url + "/api/chat",
+            data=json.dumps({"question": question}, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+        )
+        with patch.object(self.app, "call_ollama", return_value="\\(1/3\\)") as call:
+            with urlopen(request) as response:
+                chat = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(call.call_args.args[0], question)
+        self.assertEqual(chat["question"], question)
+        self.assertEqual(self.app.get_history()[-1]["question"], question)
+
+    def test_page_contains_formula_composer_and_mathjax(self):
+        page = self.app.PAGE
+        self.assertIn('contenteditable="true"', page)
+        self.assertIn('data-integral', page)
+        self.assertIn('integralLatex', page)
+        self.assertIn('insertText(button.dataset.latex)', page)
+        self.assertIn('textContent=', page)
+        self.assertIn('MathJax.typesetPromise', page)
+
 
 if __name__ == "__main__":
     unittest.main()
