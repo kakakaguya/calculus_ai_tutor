@@ -107,15 +107,38 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(chat["question"], question)
         self.assertEqual(self.app.get_history()[-1]["question"], question)
 
-    def test_page_contains_formula_composer_and_mathjax(self):
+    def test_page_contains_mathlive_tabbed_keyboard_and_mathjax(self):
         page = self.app.PAGE
-        self.assertIn('contenteditable="true"', page)
-        self.assertIn('data-integral', page)
-        self.assertIn('integralLatex', page)
-        self.assertIn('insertText(button.dataset.latex)', page)
+        self.assertIn('<math-field id="question"', page)
+        self.assertIn('math-virtual-keyboard-policy="manual"', page)
+        self.assertIn('https://unpkg.com/mathlive?module', page)
+        self.assertIn('role="tablist"', page)
+        self.assertIn('data-tab="calculus"', page)
+        self.assertIn('key-panel', page)
+        self.assertIn('CSS Grid', page.replace('grid-template-columns', 'CSS Grid'))
+        self.assertIn(r'\\placeholder{?}', page)
+        self.assertIn("selectionMode:'placeholder'", page)
+        self.assertIn("input.getValue('latex')", page)
+        self.assertIn('placeholder-box', page)
         self.assertIn('textContent=', page)
         self.assertIn('MathJax.typesetPromise', page)
         self.assertIn('renderSources', page)
+
+    def test_all_keyboard_buttons_use_named_templates(self):
+        page = self.app.PAGE
+        self.assertNotIn("data-latex=", page)
+        self.assertIn("button.dataset.template", page)
+        for template in (
+            "digit-0", "times", "power", "fraction", "function", "log",
+            "sin", "integral", "limit", "indefinite-integral", "sum",
+            "derivative", "partial-derivative", "infinity", "alpha",
+        ):
+            self.assertIn(f'data-template="{template}"', page)
+        self.assertIn(
+            "selectionMode:'placeholder'", page
+        )
+        self.assertIn(r"power:'^{\\placeholder{?}}'", page)
+        self.assertIn(r"fraction:'\\frac{\\placeholder{?}}{\\placeholder{?}}'", page)
 
 
 if __name__ == "__main__":
