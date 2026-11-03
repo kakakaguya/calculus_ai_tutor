@@ -8,6 +8,7 @@ from tutor.retrieval import (
     Retriever,
     format_context,
     load_chunk_tree,
+    passage_list,
     select_context,
     source_list,
     wants_examples,
@@ -147,6 +148,17 @@ def test_sources_list_each_section_once_with_the_context_numbers():
          "label": "3.4 Limits at Infinity"},
         {"number": 2, "section": "7.1", "title": "Integration by Parts",
          "label": "7.1 Integration by Parts"},
+    )
+
+
+def test_passages_keep_the_text_sent_to_the_model_under_the_source_number():
+    assert passage_list(BLOCKS) == (
+        {"number": 1, "chunk_id": "A", "label": "3.4 Limits at Infinity | Topic A",
+         "text": "Concept A."},
+        {"number": 2, "chunk_id": "C", "label": "7.1 Integration by Parts | Basics",
+         "text": "Concept C."},
+        {"number": 1, "chunk_id": "B", "label": "3.4 Limits at Infinity | Topic B",
+         "text": "Concept B."},
     )
 
 

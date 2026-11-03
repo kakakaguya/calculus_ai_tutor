@@ -1,7 +1,8 @@
 from langchain_core.runnables import RunnableLambda
 import pytest
 
-from tutor.query_rewrite import QueryTranslator, clean_query, needs_translation
+from tutor.glossary import Glossary
+from tutor.query_rewrite import PROMPT, QueryTranslator, clean_query, needs_translation
 
 
 @pytest.mark.parametrize(
@@ -49,3 +50,41 @@ def test_translator_leaves_english_untouched_without_calling_the_model():
 
 def test_translator_falls_back_to_the_question_on_empty_output():
     assert QueryTranslator(RunnableLambda(lambda _: "  "))("什麼是極限？") == "什麼是極限？"
+
+
+GLOSSARY = Glossary({"連鎖律": "chain rule", "0除以0": "indeterminate form 0/0"})
+
+
+def test_prompt_forbids_adding_methods_or_book_titles():
+    system = PROMPT.messages[0].prompt.template
+
+    assert "Do not add" in system
+    assert "Stewart" not in system
+
+
+def test_glossary_terms_are_given_to_the_model():
+    prompts = []
+
+    def fake_llm(prompt_value):
+        prompts.append(prompt_value.to_string())
+        return "How do you use the chain rule?"
+
+    QueryTranslator(RunnableLambda(fake_llm), GLOSSARY)("連鎖律怎麼用？")
+
+    assert "連鎖律 = chain rule" in prompts[0]
+
+
+def test_glossary_term_the_model_left_out_is_appended():
+    translate = QueryTranslator(RunnableLambda(lambda _: "What does 0 divided by 0 equal?"), GLOSSARY)
+
+    assert translate("0 除以 0 等於多少") == "What does 0 divided by 0 equal? indeterminate form 0/0"
+
+
+def test_glossary_term_already_in_the_query_is_not_repeated():
+    translate = QueryTranslator(RunnableLambda(lambda _: "How do you use the Chain Rule?"), GLOSSARY)
+
+    assert translate("連鎖律怎麼用？") == "How do you use the Chain Rule?"
+
+
+def test_empty_output_falls_back_to_the_glossary_terms():
+    assert QueryTranslator(RunnableLambda(lambda _: ""), GLOSSARY)("連鎖律怎麼用？") == "chain rule"

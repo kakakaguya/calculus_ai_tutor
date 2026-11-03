@@ -66,6 +66,50 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(result["sources"], list(sources))
         self.assertEqual(self.app.get_history()[0]["sources"], list(sources))
 
+    def _get(self, path):
+        from urllib.error import HTTPError
+        try:
+            with urlopen(f"http://127.0.0.1:{self.server.server_port}{path}") as response:
+                return response.status, json.loads(response.read().decode())
+        except HTTPError as error:
+            return error.code, json.loads(error.read().decode())
+
+    def test_clicking_a_source_returns_the_text_the_model_saw(self):
+        sources = ({"number": 1, "section": "6.8", "title": "L'Hospital's Rule",
+                    "label": "6.8 L'Hospital's Rule"},)
+        passages = ({"number": 1, "chunk_id": "chunk-000001", "label": "6.8 L'Hospital's Rule | A",
+                     "text": "Concept A."},
+                    {"number": 1, "chunk_id": "chunk-000002", "label": "6.8 L'Hospital's Rule | B",
+                     "text": "Concept B."})
+        with patch.object(self.app, "call_ollama",
+                          return_value=TutorAnswer("答［1］", sources, passages)):
+            result = self.app.answer_question("羅必達法則？")
+        record_id = result["record_id"]
+        self.assertEqual(self.app.get_history()[0]["record_id"], record_id)
+        self.assertNotIn("passages", self.app.get_history()[0])
+
+        status, body = self._get(f"/api/passages?record={record_id}&number=1")
+
+        self.assertEqual(status, 200)
+        self.assertEqual([p["text"] for p in body["passages"]], ["Concept A.", "Concept B."])
+        self.assertEqual(body["passages"][0]["label"], "6.8 L'Hospital's Rule | A")
+
+    def test_record_without_saved_text_returns_an_empty_list(self):
+        with patch.object(self.app, "call_ollama", return_value=TutorAnswer("答", ())):
+            record_id = self.app.answer_question("舊格式？")["record_id"]
+
+        status, body = self._get(f"/api/passages?record={record_id}&number=1")
+
+        self.assertEqual((status, body["passages"]), (200, []))
+
+    def test_passages_request_is_validated(self):
+        for query in ("", "?record=abc&number=1", "?record=1", "?record=1;drop&number=1"):
+            status, body = self._get("/api/passages" + query)
+            self.assertEqual(status, 400, query)
+            self.assertIn("error", body)
+        status, _ = self._get("/api/passages?record=999999&number=1")
+        self.assertEqual(status, 404)
+
     def test_demo_answer_has_no_sources(self):
         from urllib.error import URLError
         with patch.object(self.app, "call_ollama", side_effect=URLError("refused")):
@@ -116,6 +160,7 @@ class WebAppTests(unittest.TestCase):
         self.assertIn('textContent=', page)
         self.assertIn('MathJax.typesetPromise', page)
         self.assertIn('renderSources', page)
+        self.assertIn('/api/passages', page)
 
 
 if __name__ == "__main__":

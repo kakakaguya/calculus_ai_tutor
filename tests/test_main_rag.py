@@ -50,6 +50,12 @@ def test_prompt_keeps_the_latex_and_step_by_step_rules():
         assert rule in main_rag.SYSTEM_PROMPT
 
 
+def test_answer_keeps_the_retrieved_text_for_each_source():
+    result = main_rag.answer_with("q", FakeRetriever(BLOCKS), RunnableLambda(lambda _: "答"))
+
+    assert [(p["number"], p["text"]) for p in result.passages] == [(1, "Concept A."), (2, "Concept B.")]
+
+
 def test_answer_without_context_has_no_sources():
     result = main_rag.answer_with("q", FakeRetriever(()), RunnableLambda(lambda _: "答"))
 

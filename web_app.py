@@ -12,6 +12,7 @@ import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -40,6 +41,9 @@ def initialize_database() -> None:
         if "sources" not in columns:
             # 回答引用的教材，存成 JSON 陣列；舊紀錄沒有來源，預設為空陣列
             conn.execute("ALTER TABLE qa_records ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'")
+        if "passages" not in columns:
+            # 回答當時送給模型的教材原文。重新切塊後 chunk id 會改變，所以存原文而不是 id
+            conn.execute("ALTER TABLE qa_records ADD COLUMN passages TEXT NOT NULL DEFAULT '[]'")
 
         guest = conn.execute(
             "SELECT user_id FROM users WHERE username = ? ORDER BY user_id LIMIT 1", ("Guest",)
@@ -78,7 +82,7 @@ def get_history(limit: int | None = None) -> list[dict]:
     with connect_db() as conn:
         conversation_id = guest_conversation_id(conn)
         sql = (
-            "SELECT question, answer, answer_source, sources, created_at FROM qa_records "
+            "SELECT record_id, question, answer, answer_source, sources, created_at FROM qa_records "
             "WHERE conversation_id = ? ORDER BY record_id DESC"
         )
         params: list[object] = [conversation_id]
@@ -98,14 +102,30 @@ def parse_sources(raw: str | None) -> list[dict]:
     return sources if isinstance(sources, list) else []
 
 
-def save_record(question: str, answer: str, source: str, sources: list[dict]) -> None:
+def save_record(question: str, answer: str, source: str, sources: list[dict],
+                passages: list[dict] | None = None) -> int:
     with connect_db() as conn:
-        conn.execute(
-            "INSERT INTO qa_records (conversation_id, question, answer, answer_source, sources) "
-            "VALUES (?, ?, ?, ?, ?)",
+        cursor = conn.execute(
+            "INSERT INTO qa_records (conversation_id, question, answer, answer_source, sources, "
+            "passages) VALUES (?, ?, ?, ?, ?, ?)",
             (guest_conversation_id(conn), question, answer, source,
-             json.dumps(sources, ensure_ascii=False)),
+             json.dumps(sources, ensure_ascii=False), json.dumps(passages or [], ensure_ascii=False)),
         )
+        return int(cursor.lastrowid)
+
+
+def get_passages(record_id: int, number: int) -> list[dict] | None:
+    """某則回答第 number 個來源的教材原文；找不到這則回答時回傳 None。"""
+    with connect_db() as conn:
+        row = conn.execute(
+            "SELECT passages FROM qa_records WHERE record_id = ? AND conversation_id = ?",
+            (record_id, guest_conversation_id(conn)),
+        ).fetchone()
+    if row is None:
+        return None
+    return [{"label": p.get("label", ""), "text": p.get("text", "")}
+            for p in parse_sources(row["passages"])
+            if isinstance(p, dict) and p.get("number") == number]
 
 
 
@@ -139,20 +159,21 @@ def answer_question(question: str) -> dict:
         # 直接把使用者的問題傳給 call_ollama 處理
         result = call_ollama(question)
         answer, sources = result.answer, list(result.sources)
+        passages = list(getattr(result, "passages", ()))
         source, notice = "ollama", None
     except Exception as error:  # 把攔截的範圍擴大，捕捉 LangChain 可能的錯誤
-        answer, sources = demo_answer(question), []
+        answer, sources, passages = demo_answer(question), [], []
         source, notice = "demo", friendly_ollama_error(error)
 
-    save_record(question, answer, source, sources)
-    return {"question": question, "answer": answer, "source": source, "sources": sources,
-            "notice": notice}
+    record_id = save_record(question, answer, source, sources, passages)
+    return {"record_id": record_id, "question": question, "answer": answer, "source": source,
+            "sources": sources, "notice": notice}
 
 
 PAGE = r"""<!doctype html>
 <html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>微積分助教</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.6}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem}.user{font-weight:700;color:#0056b3;margin-top:1rem;white-space:pre-wrap}.assistant{margin:0 0 1.5rem}.assistant h1,.assistant h2,.assistant h3{line-height:1.25;margin:1rem 0 .45rem}.assistant p{margin:.45rem 0}.assistant ul,.assistant ol{margin:.4rem 0;padding-left:1.6rem}.assistant blockquote{margin:.6rem 0;padding:.1rem .8rem;border-left:3px solid #bbb;color:#444}.assistant code{font-family:ui-monospace,Consolas,monospace;background:#f1f1f1;padding:.1rem .3rem;border-radius:3px}.assistant pre{overflow:auto;background:#f1f1f1;padding:.8rem;border-radius:4px}.assistant pre code{padding:0;background:none}.assistant a{color:#0655ad}.demo{color:#8a5500}.toolbar{display:flex;flex-wrap:wrap;gap:.35rem;margin:.5rem 0}.toolbar button{padding:.35rem .55rem}.composer{min-height:5.2rem;border:1px solid #999;border-radius:4px;padding:.65rem;white-space:pre-wrap;overflow-wrap:anywhere}.composer:empty:before{content:attr(data-placeholder);color:#777}.formula{display:inline-flex;align-items:center;gap:.2rem;vertical-align:middle;margin:.15rem;padding:.25rem;border:1px solid #7795bc;border-radius:4px;background:#f4f8ff;white-space:normal}.formula input{width:4.5rem;padding:.25rem;border:1px solid #9aa}.formula .integrand{width:7rem}.formula button{padding:.15rem .35rem}.composer-form{display:flex;gap:.5rem;align-items:flex-start}.composer-form .composer{flex:1}.composer-form>button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}.sources{margin:.6rem 0 0;padding:.5rem .8rem;border-left:3px solid #7795bc;background:#f6f8fb;font-size:.9rem;color:#333}.sources ol{margin:.25rem 0 0;padding-left:0;list-style:none}@media(max-width:480px){body{margin:1rem auto}.composer-form{flex-direction:column}.composer-form>button{width:100%}.formula{flex-wrap:wrap}.formula input{min-width:3.5rem}.toolbar{max-height:8rem;overflow:auto}}</style>
+<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.6}#chat{min-height:280px;border:1px solid #ccc;padding:1rem;margin-bottom:1rem}.user{font-weight:700;color:#0056b3;margin-top:1rem;white-space:pre-wrap}.assistant{margin:0 0 1.5rem}.assistant h1,.assistant h2,.assistant h3{line-height:1.25;margin:1rem 0 .45rem}.assistant p{margin:.45rem 0}.assistant ul,.assistant ol{margin:.4rem 0;padding-left:1.6rem}.assistant blockquote{margin:.6rem 0;padding:.1rem .8rem;border-left:3px solid #bbb;color:#444}.assistant code{font-family:ui-monospace,Consolas,monospace;background:#f1f1f1;padding:.1rem .3rem;border-radius:3px}.assistant pre{overflow:auto;background:#f1f1f1;padding:.8rem;border-radius:4px}.assistant pre code{padding:0;background:none}.assistant a{color:#0655ad}.demo{color:#8a5500}.toolbar{display:flex;flex-wrap:wrap;gap:.35rem;margin:.5rem 0}.toolbar button{padding:.35rem .55rem}.composer{min-height:5.2rem;border:1px solid #999;border-radius:4px;padding:.65rem;white-space:pre-wrap;overflow-wrap:anywhere}.composer:empty:before{content:attr(data-placeholder);color:#777}.formula{display:inline-flex;align-items:center;gap:.2rem;vertical-align:middle;margin:.15rem;padding:.25rem;border:1px solid #7795bc;border-radius:4px;background:#f4f8ff;white-space:normal}.formula input{width:4.5rem;padding:.25rem;border:1px solid #9aa}.formula .integrand{width:7rem}.formula button{padding:.15rem .35rem}.composer-form{display:flex;gap:.5rem;align-items:flex-start}.composer-form .composer{flex:1}.composer-form>button{padding:.65rem 1rem}#status{min-height:1.5rem;color:#666}.sources{margin:.6rem 0 0;padding:.5rem .8rem;border-left:3px solid #7795bc;background:#f6f8fb;font-size:.9rem;color:#333}.sources ol{margin:.25rem 0 0;padding-left:0;list-style:none}.sources .hint{margin-left:.4rem;color:#667;font-size:.8rem}.source-link{all:unset;cursor:pointer;color:#0655ad;border-radius:3px;padding:.05rem .2rem}.source-link:hover,.source-link[aria-expanded="true"]{background:#e2e9f4}.source-link:focus-visible{outline:2px solid #7795bc}.passages{margin:.35rem 0 .6rem;padding:.4rem .7rem;border:1px solid #d5dde8;border-radius:4px;background:#fff;max-height:22rem;overflow:auto;font-size:.88rem}.passage+.passage{border-top:1px dashed #ccd;margin-top:.5rem;padding-top:.5rem}.passage-label{font-weight:600;color:#445;margin-bottom:.2rem}.passage-empty{color:#777}@media(max-width:480px){body{margin:1rem auto}.composer-form{flex-direction:column}.composer-form>button{width:100%}.formula{flex-wrap:wrap}.formula input{min-width:3.5rem}.toolbar{max-height:8rem;overflow:auto}}</style>
 
 <!-- 1. 引入 MathJax 來渲染數學公式 -->
 <script>
@@ -216,16 +237,34 @@ function renderMarkdown(markdown){
   if(math!==null)html+=`<p>$$${escapeHtml(math.join('\n'))}$$</p>`;
   return html;
 }
-function renderSources(sources){
+function renderSources(sources,recordId){
   if(!Array.isArray(sources)||!sources.length)return '';
-  const items=sources.map(s=>`<li>［${escapeHtml(String(s.number))}］${escapeHtml(s.label||'')}</li>`).join('');
-  return `<div class="sources"><strong>資料來源</strong><ol>${items}</ol></div>`;
+  const items=sources.map(s=>{
+    const text=`［${escapeHtml(String(s.number))}］${escapeHtml(s.label||'')}`;
+    if(!recordId)return `<li>${text}</li>`;
+    return `<li><button type="button" class="source-link" aria-expanded="false" data-record="${escapeHtml(String(recordId))}" data-number="${escapeHtml(String(s.number))}" title="顯示檢索到的教材原文">${text}</button><div class="passages" hidden></div></li>`;
+  }).join('');
+  return `<div class="sources"><strong>資料來源</strong>${recordId?'<span class="hint">（點章節可看檢索原文）</span>':''}<ol>${items}</ol></div>`;
 }
+async function togglePassages(button){
+  const panel=button.nextElementSibling;const open=button.getAttribute('aria-expanded')==='true';
+  button.setAttribute('aria-expanded',String(!open));panel.hidden=open;
+  if(open||panel.dataset.loaded)return;
+  panel.textContent='載入中…';
+  try{
+    const r=await fetch(`/api/passages?record=${encodeURIComponent(button.dataset.record)}&number=${encodeURIComponent(button.dataset.number)}`);
+    const data=await r.json();if(!r.ok)throw new Error(data.error||'載入失敗');
+    panel.innerHTML=data.passages.length?data.passages.map(p=>`<div class="passage"><div class="passage-label">${escapeHtml(p.label||'')}</div>${renderMarkdown(p.text)}</div>`).join(''):'<p class="passage-empty">這則回答沒有保存檢索原文（較早的紀錄）。</p>';
+    panel.dataset.loaded='1';
+    if(window.MathJax)MathJax.typesetPromise([panel]);
+  }catch(err){panel.textContent='無法載入原文：'+err.message}
+}
+chat.addEventListener('click',e=>{const b=e.target.closest('.source-link');if(b)togglePassages(b)});
 function add(record){
     const q=document.createElement('div');q.className='user';q.textContent='你：'+record.question;
     const a=document.createElement('div');a.className='assistant '+(record.answer_source=== 'demo'||record.source==='demo'?'demo':'');
     const label=record.answer_source=== 'demo'||record.source==='demo'?'示範回覆':'Ollama 回覆';
-    a.innerHTML=`<strong>${label}</strong>${renderMarkdown(record.answer)}${renderSources(record.sources)}`;
+    a.innerHTML=`<strong>${label}</strong>${renderMarkdown(record.answer)}${renderSources(record.sources,record.record_id)}`;
     chat.append(q,a);
     chat.scrollTop=chat.scrollHeight;
     
@@ -256,8 +295,21 @@ class AppHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         elif self.path == "/api/history":
             self.send_json(200, get_history())
+        elif urlsplit(self.path).path == "/api/passages":
+            self.send_passages(parse_qs(urlsplit(self.path).query))
         else:
             self.send_json(404, {"error": "找不到路徑"})
+
+    def send_passages(self, query: dict[str, list[str]]) -> None:
+        record, number = query.get("record", [""])[0], query.get("number", [""])[0]
+        if not (record.isdigit() and number.isdigit()):
+            self.send_json(400, {"error": "需要數字參數 record 與 number"})
+            return
+        passages = get_passages(int(record), int(number))
+        if passages is None:
+            self.send_json(404, {"error": "找不到這則回答"})
+            return
+        self.send_json(200, {"passages": passages})
 
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/api/chat":

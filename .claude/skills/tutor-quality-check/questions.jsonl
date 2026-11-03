@@ -1,0 +1,24 @@
+{"id": "concept-limit", "question": "什麼是極限？", "category": "control", "expect_sections": ["1.5", "1.7"], "key_points": ["x 趨近 a 時 f(x) 任意接近 L", "與 f(a) 的值無關"]}
+{"id": "concept-chain-rule", "question": "連鎖律怎麼用？", "category": "control", "expect_sections": ["2.5"], "key_points": ["(f∘g)'(x) = f'(g(x))·g'(x)", "附一個合成函數的例子"]}
+{"id": "concept-horizontal-asymptote", "question": "什麼是水平漸近線", "category": "control", "expect_sections": ["3.4"], "key_points": ["lim_{x→±∞} f(x) = L 時 y = L 是水平漸近線"]}
+{"id": "concept-integration-by-parts", "question": "分部積分法", "category": "control", "expect_sections": ["7.1"], "key_points": ["∫u dv = uv − ∫v du", "說明如何選 u 與 dv"]}
+{"id": "concept-lhospital-tw", "question": "羅必達法則", "category": "control", "expect_sections": ["6.8"], "key_points": ["只用於 0/0 或 ∞/∞ 未定型", "lim f/g = lim f'/g'（後者存在時）"]}
+{"id": "concept-lhospital-alt", "question": "洛必達法則", "category": "control", "expect_sections": ["6.8"], "key_points": ["同「羅必達法則」，測試不同譯名"]}
+{"id": "concept-mvt", "question": "均值定理", "category": "control", "expect_sections": ["3.2"], "key_points": ["f 在 [a,b] 連續、(a,b) 可微", "存在 c 使 f'(c) = (f(b)−f(a))/(b−a)"]}
+{"id": "concept-implicit", "question": "隱函數微分", "category": "control", "expect_sections": ["2.6"], "key_points": ["兩邊對 x 微分，y 視為 x 的函數，對 y 項用連鎖律"]}
+{"id": "concept-improper", "question": "瑕積分", "category": "control", "expect_sections": ["7.8"], "key_points": ["無窮區間或被積函數有無窮不連續點", "以極限定義，收斂或發散"]}
+{"id": "concept-lagrange", "question": "拉格朗日乘數", "category": "control", "expect_sections": ["14.8"], "key_points": ["∇f = λ∇g 且 g = k"]}
+{"id": "term-differential-vs-derivative", "question": "微分和導數有什麼不同？", "category": "terminology", "expect_sections": ["2.9", "2.1", "2.2"], "key_points": ["導數 f'(x) 是變化率（極限）", "微分 dy = f'(x) dx 是線性近似的增量"], "pitfall": "翻譯曾變成 'difference between different…'，丟掉「微分」"}
+{"id": "term-delta-vs-d", "question": "Δ和d有什麼差別", "category": "terminology", "expect_sections": ["2.9"], "key_points": ["Δy 是實際變化量", "dy 是沿切線的近似變化量", "dx = Δx 時 dy ≈ Δy"], "pitfall": "符號問題，檢索曾命中 14.4"}
+{"id": "term-zero-over-zero", "question": "0 除以 0 等於多少", "category": "terminology", "expect_sections": ["1.6", "6.8"], "key_points": ["0/0 沒有定義", "極限中的 0/0 是未定型，要另外處理（約分或羅必達）"], "pitfall": "學生用語和課本 indeterminate form 對不上，曾命中 4.3、11.2"}
+{"id": "term-riemann-sum", "question": "黎曼和", "category": "terminology", "expect_sections": ["4.1", "4.2"], "key_points": ["Σ f(x_i*) Δx", "n→∞ 的極限定義定積分"], "pitfall": "15.1 二重積分也有 Riemann sum，曾排第一"}
+{"id": "term-simplified-chinese", "question": "请问导数的定义是什么", "category": "terminology", "expect_sections": ["2.1", "2.2"], "key_points": ["f'(a) = lim_{h→0} (f(a+h)−f(a))/h", "回答必須是繁體中文"], "pitfall": "簡體提問，曾找不到 2.1"}
+{"id": "trap-integral-1-over-x", "question": "1/x 從 -1 積到 1 是多少", "category": "trap", "expect_sections": ["7.8"], "key_points": ["x = 0 是無窮不連續點，這是瑕積分", "答案：發散（不是 0）"], "pitfall": "模型容易因為奇函數答 0；檢索曾命中 6.6"}
+{"id": "trap-sinx-over-x", "question": "sin x / x 當 x 趨近 0", "category": "trap", "expect_sections": ["2.4"], "key_points": ["極限為 1", "課本用幾何與夾擠定理證明", "不可用羅必達證明（循環論證）"], "pitfall": "翻譯曾自行加上 'using L'Hospital's Rule'，導向 6.8"}
+{"id": "trap-sinx-over-x-proof", "question": "sin x / x 當 x 趨近 0 的極限怎麼證明", "category": "trap", "expect_sections": ["2.4"], "key_points": ["sin θ < θ < tan θ（0<θ<π/2）", "夾擠定理", "θ 是弧長不是弦長"], "pitfall": "曾把「弧長」寫成「弦長」"}
+{"id": "trap-inf-minus-inf", "question": "無窮大減無窮大是 0 嗎", "category": "trap", "expect_sections": ["6.8", "3.4"], "key_points": ["不是，∞ − ∞ 是未定型", "舉反例，例如 x − x² → −∞"]}
+{"id": "trap-integral-1-over-x-indef", "question": "求 ∫ 1/x dx", "category": "trap", "expect_sections": ["6.4", "6.2*", "6.4*", "4.4"], "key_points": ["ln|x| + C", "必須有絕對值"]}
+{"id": "trap-x-to-the-x", "question": "x 的 x 次方怎麼微分", "category": "trap", "expect_sections": ["6.4", "6.4*"], "key_points": ["對數微分法", "答案 x^x (ln x + 1)", "不可用冪次法則得到 x·x^(x−1)"]}
+{"id": "trap-continuous-differentiable", "question": "連續一定可微嗎", "category": "trap", "expect_sections": ["2.2"], "key_points": ["不一定", "反例 |x| 在 x = 0", "可微必連續"]}
+{"id": "trap-dydx-fraction", "question": "dy/dx 可以當分數約分嗎", "category": "trap", "expect_sections": ["2.2", "2.5", "2.9", "4.5"], "key_points": ["dy/dx 是極限，不是真的分數", "在連鎖律、代換法中形式上可這樣運算"]}
+{"id": "scope-fourier", "question": "什麼是傅立葉級數", "category": "out_of_scope", "expect_sections": [], "key_points": ["應說明本教材沒有傅立葉級數", "不可假裝引用不相關章節（如 11.8 冪級數）當作出處"]}

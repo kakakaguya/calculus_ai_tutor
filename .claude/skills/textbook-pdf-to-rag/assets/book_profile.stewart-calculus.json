@@ -1,0 +1,57 @@
+{
+ "book": "Stewart, Calculus: Early Transcendentals 9e (Cengage), 5-page parts, exercise pages removed",
+ "protected_files": [
+  "Calculus[1] (2)_merged-15.md",
+  "Calculus[1] (2)_merged-43.md",
+  "Calculus[1] (2)_merged-64.md",
+  "Calculus[1] (2)_merged-88.md",
+  "Calculus[1] (2)_merged-183.md",
+  "Calculus[1] (2)_merged-192.md"
+ ],
+ "skip_files": [],
+ "cleanup": {
+  "delete_line_patterns": [
+   "Copyright 2021 Cengage Learning\\. All Rights Reserved\\."
+  ],
+  "replacements": [
+   [
+    "\\\\varliminf(?![A-Za-z])",
+    "\\\\lim"
+   ]
+  ]
+ },
+ "layout_markers": [
+  {
+   "name": "subheading",
+   "font": "MyriadPro-Semibold",
+   "text": "[A-Za-z0-9]",
+   "after": {
+    "font": "ZapfDingbatsStd",
+    "text": "^■$"
+   }
+  },
+  {
+   "name": "exercise_item",
+   "font": ".*BoldSemiCn",
+   "size": [
+    8.7,
+    9.3
+   ],
+   "text": "^\\d{1,3}(?:\\.|[–-]\\d{1,3})$",
+   "with_next": true
+  }
+ ],
+ "chunking": {
+  "subheading_marker": "subheading"
+ },
+ "evidence": {
+  "protected_files": "手動修正過 OCR 錯誤的檔案；重跑 MinerU 或清理都不能覆蓋",
+  "cleanup.delete_line_patterns[0]": "每頁頁尾的出版社版權行，常包在 <small><span> 裡；整本約 950 處",
+  "cleanup.replacements[0]": "MinerU 的 VLM 把一般的 lim 讀成 \\varliminf（帶底線的 lim）",
+  "layout_markers.subheading": "inspect_fonts --find 'The Chain Rule'：藍色 ■ 是 ZapfDingbatsStd，標題是 MyriadPro-Semibold；例題結尾的 ■ 是 ZapfDingbatsITC，紅框定理標題是 MyriadPro-Bold，不可混用",
+  "layout_markers.exercise_item": "習題題號 MyriadPro-BoldSemiCn 9pt，正文 TimesLTStd-Roman 10pt",
+  "chunking.example_end": "例題結尾沒有可靠的 ■（0/890 塊以 ■ 結尾），所以例題靠下一個小標題、例題或章節結束",
+  "chunking.section_heading": "章節標題 120 次是 '## 3.4'，93 次是沒有 # 的 '3.4'；標題常在下一行 '## Limits at Infinity'",
+  "contents": "目錄在第一份 Markdown（'## Contents'），chunk_markdown 會自動略過"
+ }
+}

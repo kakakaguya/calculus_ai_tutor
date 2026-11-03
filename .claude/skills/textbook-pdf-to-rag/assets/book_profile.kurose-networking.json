@@ -1,0 +1,27 @@
+{
+ "book": "Kurose & Ross, Computer Networking: A Top-Down Approach 8e Global Edition (Pearson preview, 80 pages). Kept PDF pages 23-29 (detailed contents) and 33-80 (chapter 1, sections 1.1-1.4 and the start of 1.5); 5-page parts.",
+ "protected_files": [],
+ "skip_files": [],
+ "cleanup": {
+  "delete_line_patterns": [],
+  "replacements": []
+ },
+ "layout_markers": [],
+ "chunking": {
+  "section_heading": "^ {0,3}#{1,6}\\s+(?P<section>\\d+\\.\\d+)(?![.\\d])\\s+(?P<title>[A-Z].*?)\\s*$",
+  "subheading_line": "^ {0,3}#{1,6}\\s+(?P<title>\\d+\\.\\d+\\.\\d+\\s+\\S.*?)\\s*$",
+  "title_from_next_heading": false,
+  "sidebar_heading": "^ {0,3}#{1,6}\\s*(?:CASE HISTORY|PRINCIPLES IN PRACTICE|FOCUS ON SECURITY)\\s*$"
+ },
+ "evidence": {
+  "chunking.section_heading": "kurose_ch1-3.md: '## 1.1 What Is the Internet?' — number and title on one line with ##. Restricted to two levels with (?![.\\d]) so '## 1.1.1 ...' is not a section.",
+  "chunking.subheading_line": "kurose_ch1-3.md: '## 1.1.1 A Nuts-and-Bolts Description', '## 1.1.2 A Services Description' — third-level numbered headings, used as subtopics so a section splits into section_text chunks per subsection.",
+  "chunking.title_from_next_heading": "Section titles are on the same line as the number; the next ## line is a subsection, so it must not be taken as the title.",
+  "chunking.examples": "No EXAMPLE/SOLUTION blocks in chapter 1 of this book (pypdf text of all 48 body pages has none); only Figure captions. Expect 0 example chunks.",
+  "contents": "kurose_ch1-1.md '## Table of Contents' with '- 1.1 What Is the Internet? 32' lines; chapter lines lost 'Chapter 1' ('- Computer Networks and the Internet 31'), which the default toc_entry ignores (no section number).",
+  "running_headers": "Checked all 12 parts: MinerU dropped every running header (0 hits for 'CHAPTER 1 •' or '<n> 1.x •').",
+  "cleanup": "No book-specific rule needed: after OCR of all 12 parts, 0 lines contain 'CHAPTER 1 •', 'Copyright', 'Pearson' or 'intentionally left blank'; the only 'indd' hit is inside a base64 image. Running headers were dropped by MinerU in every part. Generic rules handle the 24 base64 images.",
+  "chunking.sidebar_heading": "kurose_ch1-5.md lines 3-5: '## CASE HISTORY' then '## DATA CENTERS AND CLOUD COMPUTING' (box title). The box was dropped into the sentence '...an e-mail' (end of -4); the body resumes at -5 line 13 'client program, ...'. chunk_markdown listed exactly these two caps headings as sidebar candidates. Other Kurose box types (Principles in Practice, Focus on Security) are named from the book's design, not yet seen in this sample.",
+  "chapter_intro": "'# Computer Networks and the Internet' (single #) followed by 4 overview paragraphs before '## 1.1'; kept as a chapter_intro chunk for section 1."
+ }
+}

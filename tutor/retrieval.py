@@ -163,6 +163,20 @@ def source_list(blocks: tuple[ContextBlock, ...]) -> tuple[dict, ...]:
     )
 
 
+def passage_list(blocks: tuple[ContextBlock, ...]) -> tuple[dict, ...]:
+    """The text each source contributed, as sent to the model, under the source's number.
+
+    Saved with the answer: chunk ids change whenever the book is re-chunked, so only a
+    copy of the text can show later what an old answer was based on.
+    """
+    numbers = _section_numbers(blocks)
+    return tuple(
+        {"number": numbers[block.section_name], "chunk_id": block.chunk_id,
+         "label": block.label, "text": block.text}
+        for block in blocks
+    )
+
+
 class Retriever:
     def __init__(
         self,

@@ -15,6 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from langchain_ollama import ChatOllama
 
+from tutor.glossary import load_glossary
 from tutor.query_rewrite import QueryTranslator
 from tutor.retrieval import (
     NO_CONTEXT,
@@ -22,6 +23,7 @@ from tutor.retrieval import (
     Retriever,
     format_context,
     load_chunk_tree,
+    passage_list,
     source_list,
 )
 from tutor.vector_store import CHROMA_DB_DIR, OLLAMA_BASE_URL, open_vector_store
@@ -54,6 +56,7 @@ class BlockSource(Protocol):
 class TutorAnswer:
     answer: str
     sources: tuple[dict, ...]
+    passages: tuple[dict, ...] = ()  # retrieved text per source number, shown on click
 
 
 def _chain(llm: Runnable) -> Runnable:
@@ -65,7 +68,7 @@ def answer_with(question: str, retriever: BlockSource, llm: Runnable) -> TutorAn
     answer = _chain(llm).invoke({"context": format_context(blocks), "input": question})
     if not answer.strip():
         raise ValueError("沒有收到 AI 的回覆")
-    return TutorAnswer(answer, source_list(blocks))
+    return TutorAnswer(answer, source_list(blocks), passage_list(blocks))
 
 
 def format_sources(sources: tuple[dict, ...]) -> str:
@@ -90,7 +93,8 @@ def _tutor() -> tuple[Retriever, ChatOllama]:
     # Translation is a one-line lookup, so thinking is turned off to keep it fast.
     translator = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL,
                             temperature=0, reasoning=False)
-    retriever = Retriever(open_index(), load_chunk_tree(), rewrite=QueryTranslator(translator))
+    retriever = Retriever(open_index(), load_chunk_tree(),
+                          rewrite=QueryTranslator(translator, load_glossary()))
     llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL,
                      temperature=TEMPERATURE, num_ctx=NUM_CTX)
     return retriever, llm
