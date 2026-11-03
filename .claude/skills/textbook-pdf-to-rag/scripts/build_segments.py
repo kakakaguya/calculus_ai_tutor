@@ -22,7 +22,11 @@ import math
 import os
 from pathlib import Path
 import re
+import sys
 import tempfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from stage_report import write_report  # noqa: E402
 
 CHARS_PER_TOKEN = 3.35  # measured with nomic-embed-text; re-measure for another model
 MAX_TOKENS = 500
@@ -204,6 +208,7 @@ def main() -> None:
     parser.add_argument("--chars-per-token", type=float, default=CHARS_PER_TOKEN)
     parser.add_argument("--embed-kinds", nargs="+", default=["section_text", "sidebar"],
                         choices=["section_text", "sidebar", "example", "exercises"])
+    parser.add_argument("--json", type=Path, help="同時把片段統計寫成 JSON")
     args = parser.parse_args()
     paths = {args.chunks.resolve(), args.tree.resolve(), args.segments.resolve()}
     if len(paths) != 3:
@@ -222,9 +227,15 @@ def main() -> None:
     over = sum(size > EMBED_LIMIT_TOKENS for size in sizes)
     linked = sum(1 for n in nodes if n["parent_id"])
     examples = sum(1 for n in nodes if n["kind"] == "example")
-    print(f"{len(nodes)} 塊 → {len(segments)} 片段 {dict(Counter(s['kind'] for s in segments))}")
+    segment_kinds = dict(Counter(s["kind"] for s in segments))
+    print(f"{len(nodes)} 塊 → {len(segments)} 片段 {segment_kinds}")
     print(f"例題掛到子主題：{linked} / {examples}；片段 token 中位數 {sizes[len(sizes) // 2]}、"
           f"最大 {sizes[-1]}；超過 {EMBED_LIMIT_TOKENS}：{over}")
+    write_report(args.json, "segments", ok=True, nodes=len(nodes), segments=len(segments),
+                 segment_kinds=segment_kinds, examples=examples, linked_examples=linked,
+                 token_median=sizes[len(sizes) // 2], token_max=sizes[-1],
+                 embed_limit_tokens=EMBED_LIMIT_TOKENS, over_embed_limit=over,
+                 max_tokens=args.max_tokens, chars_per_token=args.chars_per_token)
 
 
 if __name__ == "__main__":

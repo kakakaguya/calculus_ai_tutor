@@ -15,6 +15,9 @@ import json
 from pathlib import Path
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from stage_report import write_report  # noqa: E402
+
 
 def parse_ranges(spec: str, page_count: int) -> set[int]:
     """'1-3,7' -> {1, 2, 3, 7}; pages are 1-based and must exist in the PDF."""
@@ -58,6 +61,7 @@ def main() -> None:
     parser.add_argument("--exclude", default="", help="要排除的頁碼，例如 1-12,401-420")
     parser.add_argument("--dry-run", action="store_true", help="只印出切分計畫")
     parser.add_argument("--force", action="store_true", help="輸出資料夾已有切好的檔案時仍寫入")
+    parser.add_argument("--json", type=Path, help="同時把切分計畫／結果寫成 JSON")
     args = parser.parse_args()
 
     from pypdf import PdfReader, PdfWriter
@@ -72,10 +76,18 @@ def main() -> None:
         parser.error(str(error))
     parts = plan_parts(page_count, excluded, args.pages_per_part)
     stem = args.pdf.stem
+    plan = [{"file": f"{stem}-{number}.pdf", "pages": [pages[0], pages[-1]]}
+            for number, pages in enumerate(parts, 1)]
+
+    def report(dry_run: bool) -> None:
+        write_report(args.json, "split", ok=True, dry_run=dry_run, source=args.pdf.name,
+                     source_pages=page_count, excluded_pages=sorted(excluded), parts=plan)
+
     print(f"{args.pdf.name}：共 {page_count} 頁，排除 {len(excluded)} 頁，切成 {len(parts)} 份")
     if args.dry_run:
-        for number, pages in enumerate(parts, 1):
-            print(f"  {stem}-{number}.pdf  第 {pages[0]}-{pages[-1]} 頁")
+        for part in plan:
+            print(f"  {part['file']}  第 {part['pages'][0]}-{part['pages'][1]} 頁")
+        report(dry_run=True)
         return
 
     # glob.escape: textbook file names often contain [ ] (e.g. "Calculus[1]"), which glob reads as a pattern
@@ -103,6 +115,7 @@ def main() -> None:
     (args.out / "split_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"已寫入 {len(parts)} 份 PDF 與 split_manifest.json 至 {args.out}")
+    report(dry_run=False)
 
 
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from book_profile import load_profile, natural_key  # noqa: E402
 from inspect_fonts import Run, pdf_runs  # noqa: E402
+from stage_report import write_report  # noqa: E402
 
 
 def _run_matches(run: Run, rule: dict) -> bool:
@@ -54,6 +55,7 @@ def main() -> None:
     parser.add_argument("pdf_dir", type=Path)
     parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--json", type=Path, help="同時把各標記的擷取數量寫成 JSON")
     args = parser.parse_args()
     try:
         markers = load_profile(args.profile)["layout_markers"]
@@ -71,6 +73,9 @@ def main() -> None:
             totals[name] += len(texts)
     args.out.write_text(json.dumps(hints, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{len(pdfs)} 份 PDF：{totals} → {args.out}")
+    without_hints = [stem for stem, found in hints.items() if not any(found.values())]
+    write_report(args.json, "layout", ok=True, pdfs=len(pdfs), totals=totals,
+                 pdfs_without_hints=without_hints, out=str(args.out))
 
 
 if __name__ == "__main__":

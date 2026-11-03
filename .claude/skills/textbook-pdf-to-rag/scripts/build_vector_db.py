@@ -18,6 +18,9 @@ import sys
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from stage_report import write_report  # noqa: E402
+
 METADATA_FIELDS = ("chunk_id", "parent_id", "kind", "section", "section_title", "subheading",
                    "example_label", "position", "segment_count", "header")
 NOMIC_DOCUMENT_PREFIX = "search_document: "
@@ -44,6 +47,7 @@ def main() -> None:
     parser.add_argument("--model", default="nomic-embed-text")
     parser.add_argument("--base-url", default="http://127.0.0.1:11434")
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--json", type=Path, help="同時把寫入結果寫成 JSON")
     args = parser.parse_args()
     import chromadb
 
@@ -67,6 +71,9 @@ def main() -> None:
         print(f"已寫入 {start + len(batch)} / {len(segments)}", flush=True)
     print(f"完成：{args.persist} collection={args.collection}（查詢時記得加 search_query: 前綴）"
           if prefix else f"完成：{args.persist} collection={args.collection}")
+    write_report(args.json, "vectors", ok=True, segments=len(segments), stored=collection.count(),
+                 persist=str(args.persist), collection=args.collection, model=args.model,
+                 query_prefix="search_query: " if prefix else "")
 
 
 if __name__ == "__main__":

@@ -27,6 +27,8 @@ class WebAppTests(unittest.TestCase):
                 CREATE TABLE qa_records (record_id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER NOT NULL, material_id INTEGER, question TEXT NOT NULL, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
             """)
         self.app.initialize_database()
+        user = self.app.login_or_register("測試學生")
+        self.conv_id = self.app.get_conversations(user["user_id"])[0]["conversation_id"]
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self.app.AppHandler)
         self.server_thread = Thread(target=self.server.serve_forever, daemon=True)
         self.server_thread.start()
@@ -40,31 +42,31 @@ class WebAppTests(unittest.TestCase):
 
     def test_ollama_answer_is_saved(self):
         with patch.object(self.app, "call_ollama", return_value=TutorAnswer("這是真實回答", ())):
-            result = self.app.answer_question("什麼是極限？")
+            result = self.app.answer_question(self.conv_id, "什麼是極限？")
         self.assertEqual(result["source"], "ollama")
-        self.assertEqual(self.app.get_history()[0]["answer"], "這是真實回答")
+        self.assertEqual(self.app.get_history(self.conv_id)[0]["answer"], "這是真實回答")
 
     def test_unavailable_ollama_uses_marked_demo(self):
         from urllib.error import URLError
         with patch.object(self.app, "call_ollama", side_effect=URLError("refused")):
-            result = self.app.answer_question("測試問題")
+            result = self.app.answer_question(self.conv_id, "測試問題")
         self.assertEqual(result["source"], "demo")
         self.assertIn("無法連線", result["notice"])
-        self.assertEqual(self.app.get_history()[0]["answer_source"], "demo")
+        self.assertEqual(self.app.get_history(self.conv_id)[0]["answer_source"], "demo")
 
     def test_missing_vector_database_message_is_shown(self):
         error = RuntimeError("向量資料庫不存在，請先執行 python -m ingestion.build_vector_db")
         with patch.object(self.app, "call_ollama", side_effect=error):
-            result = self.app.answer_question("測試問題")
+            result = self.app.answer_question(self.conv_id, "測試問題")
         self.assertEqual(result["source"], "demo")
         self.assertIn("build_vector_db", result["notice"])
 
     def test_sources_are_returned_and_kept_in_history(self):
         sources = ({"number": 1, "type": "教材", "label": "6.8 L'Hospital's Rule", "chunk_id": "c1"},)
         with patch.object(self.app, "call_ollama", return_value=TutorAnswer("答［1］", sources)):
-            result = self.app.answer_question("羅必達法則？")
+            result = self.app.answer_question(self.conv_id, "羅必達法則？")
         self.assertEqual(result["sources"], list(sources))
-        self.assertEqual(self.app.get_history()[0]["sources"], list(sources))
+        self.assertEqual(self.app.get_history(self.conv_id)[0]["sources"], list(sources))
 
     def _get(self, path):
         from urllib.error import HTTPError
@@ -83,10 +85,10 @@ class WebAppTests(unittest.TestCase):
                      "text": "Concept B."})
         with patch.object(self.app, "call_ollama",
                           return_value=TutorAnswer("答［1］", sources, passages)):
-            result = self.app.answer_question("羅必達法則？")
+            result = self.app.answer_question(self.conv_id, "羅必達法則？")
         record_id = result["record_id"]
-        self.assertEqual(self.app.get_history()[0]["record_id"], record_id)
-        self.assertNotIn("passages", self.app.get_history()[0])
+        self.assertEqual(self.app.get_history(self.conv_id)[0]["record_id"], record_id)
+        self.assertNotIn("passages", self.app.get_history(self.conv_id)[0])
 
         status, body = self._get(f"/api/passages?record={record_id}&number=1")
 
@@ -96,7 +98,7 @@ class WebAppTests(unittest.TestCase):
 
     def test_record_without_saved_text_returns_an_empty_list(self):
         with patch.object(self.app, "call_ollama", return_value=TutorAnswer("答", ())):
-            record_id = self.app.answer_question("舊格式？")["record_id"]
+            record_id = self.app.answer_question(self.conv_id, "舊格式？")["record_id"]
 
         status, body = self._get(f"/api/passages?record={record_id}&number=1")
 
@@ -113,25 +115,25 @@ class WebAppTests(unittest.TestCase):
     def test_demo_answer_has_no_sources(self):
         from urllib.error import URLError
         with patch.object(self.app, "call_ollama", side_effect=URLError("refused")):
-            result = self.app.answer_question("測試問題")
+            result = self.app.answer_question(self.conv_id, "測試問題")
         self.assertEqual(result["sources"], [])
-        self.assertEqual(self.app.get_history()[0]["sources"], [])
+        self.assertEqual(self.app.get_history(self.conv_id)[0]["sources"], [])
 
     def test_blank_question_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "不可空白"):
-            self.app.answer_question("   ")
+            self.app.answer_question(self.conv_id, "   ")
 
     def test_http_chat_and_history_endpoints(self):
         base_url = f"http://127.0.0.1:{self.server.server_port}"
         request = Request(
             base_url + "/api/chat",
-            data=json.dumps({"question": "HTTP 測試"}).encode(),
+            data=json.dumps({"question": "HTTP 測試", "conversation_id": self.conv_id}).encode(),
             headers={"Content-Type": "application/json"},
         )
         with patch.object(self.app, "call_ollama", return_value=TutorAnswer("API 回答", ())):
             with urlopen(request) as response:
                 chat = json.loads(response.read().decode())
-        with urlopen(base_url + "/api/history") as response:
+        with urlopen(f"{base_url}/api/history?conversation_id={self.conv_id}") as response:
             history = json.loads(response.read().decode())
         self.assertEqual(chat["source"], "ollama")
         self.assertEqual(history[-1]["question"], "HTTP 測試")
@@ -141,7 +143,8 @@ class WebAppTests(unittest.TestCase):
         question = "請計算：\n\\int_{0}^{1} x^2 \\, dx\n結果為何？"
         request = Request(
             base_url + "/api/chat",
-            data=json.dumps({"question": question}, ensure_ascii=False).encode("utf-8"),
+            data=json.dumps({"question": question, "conversation_id": self.conv_id},
+                            ensure_ascii=False).encode("utf-8"),
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
         with patch.object(self.app, "call_ollama", return_value=TutorAnswer("\\(1/3\\)", ())) as call:
@@ -149,7 +152,7 @@ class WebAppTests(unittest.TestCase):
                 chat = json.loads(response.read().decode("utf-8"))
         self.assertEqual(call.call_args.args[0], question)
         self.assertEqual(chat["question"], question)
-        self.assertEqual(self.app.get_history()[-1]["question"], question)
+        self.assertEqual(self.app.get_history(self.conv_id)[-1]["question"], question)
 
     def test_page_contains_mathlive_tabbed_keyboard_and_mathjax(self):
         page = self.app.PAGE

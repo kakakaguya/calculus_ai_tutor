@@ -1,6 +1,9 @@
 ---
 name: textbook-pdf-to-rag
 description: 把教科書或講義 PDF 做成 RAG 可用的切塊資料：切分 PDF、MinerU 本機 OCR 轉 Markdown（含 LaTeX 公式）、清理 OCR 系統性錯誤、從 PDF 字型找回小標題與習題、依章節／小標題／例題切塊、建立例題掛在觀念下的父子結構、切成 embedding 片段並寫入 ChromaDB。只要使用者要把課本、教材、講義、textbook 變成知識庫、向量資料庫、AI 助教或問答系統的資料，或者手上已有 MinerU 輸出、chunks.jsonl 想重切、驗證、重建向量庫，即使沒說「RAG」也要使用。Turn a textbook PDF into validated RAG chunks (split → MinerU OCR → cleanup → font hints → section/example chunking → parent-child segments → Chroma). 不適用：只是讀一份 PDF、摘要文件、從 PDF 擷取幾段文字，或與教材無關的一般程式碼工作。
+metadata:
+  version: "2"
+  updated: "2026-11-04"
 ---
 
 # 教科書 PDF → RAG 切塊
@@ -25,7 +28,10 @@ description: 把教科書或講義 PDF 做成 RAG 可用的切塊資料：切分
 | `chunks.jsonl` | 4 的驗證，然後 5 |
 | `segments.jsonl`，只要重建向量庫 | 5 的向量庫部分 |
 
-先看工作目錄裡已經有哪些產物、`book_profile.json` 是否存在，沿用既有成果。
+先跑 `python3 $S/pipeline_status.py <work>`（只讀不改，路徑不同就用 `--markdown` 等參數指定）。
+它列出每段是 完成／部分／未做／過期／執行中／不需要，並建議下一步；「過期」表示某個輸入
+比輸出新（例如切塊後又改了 Markdown），「執行中」表示 OCR 還在背景跑。以它的結果配合上表
+決定入口，沿用既有成果；它是依檔案判斷，和使用者說的不一致時以使用者為準並問清楚。
 
 ## 工作目錄與產物
 
@@ -42,8 +48,13 @@ description: 把教科書或講義 PDF 做成 RAG 可用的切塊資料：切分
 ├── chunks.jsonl          4 → section_text / example / exercises
 ├── chunk_tree.jsonl      5 → 完整文字塊＋parent_id/child_ids（回答時用）
 ├── segments.jsonl        5 → embedding 片段（檢索時用）
+├── chroma_db/            5 → 向量庫（專案常放在別處，用 --chroma 指定）
+├── reports/              各段 --json 摘要（split.json、ocr.json、clean.json …）
 └── pipeline_report.md    各段的驗收結果與證據紀錄
 ```
+
+每個階段腳本都接受 `--json reports/<段>.json`，把印在畫面上的數字同時寫成 JSON。
+寫收尾報告時引用這些 JSON 的數字，不要從捲動的文字輸出裡抄。
 
 ## 流程地圖
 
@@ -60,6 +71,28 @@ description: 把教科書或講義 PDF 做成 RAG 可用的切塊資料：切分
 
 需要 pypdf 的腳本（0、3）通常在 MinerU 的虛擬環境裡跑：`.venv-mineru/bin/python $S/...`。
 `build_vector_db.py` 需要 chromadb 與執行中的 Ollama。
+
+## 缺少某個條件時，其他段照做
+
+缺一樣東西只影響需要它的那一段。說清楚缺什麼、影響哪段，其餘照常推進，
+不要因為一段做不了就整件事停下，也不要為了補條件去裝不相干的東西。
+
+| 缺少 | 受影響 | 仍可做 |
+|---|---|---|
+| NVIDIA GPU | 1 OCR（CPU 極慢） | 0 切分；已有 Markdown 時 2–5 全部（向量庫另需 Ollama） |
+| MinerU（未安裝或未同意下載） | 1 OCR | 0 切分；使用者另外提供的 Markdown 照樣走 2–5 |
+| pypdf | 0 切分、3 字型提示 | 2 清理、4 切塊（不用字型提示，在報告註明小標題可能較少）、5 |
+| 原始 PDF（只有 Markdown） | 0、3 | 2、4、5；切塊無法對回原書頁碼 |
+| Ollama 或 embedding 模型 | 5 的向量庫 | 0–4 與 `build_segments.py`（片段可以先做好交接） |
+| chromadb | 5 的向量庫 | 同上 |
+
+## 會跑很久的步驟
+
+整本 OCR 要數小時，比一次工具呼叫能等的時間長得多，所以全量 OCR 放背景跑、
+輸出寫到記錄檔（指令見 `references/01-ocr-mineru.md`）。**工具呼叫逾時或對話中斷，
+不代表 OCR 停了。** 先用 `pipeline_status.py` 看是否「執行中」；還在跑就等，
+不要再啟動一次：兩個 MinerU 會搶同一張 GPU、同時寫同一個資料夾
+（`run_mineru.py` 的鎖檔也會擋下第二次）。確認停了才用同一個指令接續，已完成的會略過。
 
 ## 先小量、先預覽，再全量
 
@@ -110,10 +143,17 @@ description: 把教科書或講義 PDF 做成 RAG 可用的切塊資料：切分
 - 設定檔每個欄位：`references/book-profile.md`
 - 錯誤對照表：`references/troubleshooting.md`
 
+## 版本
+
+frontmatter 的 `metadata.version` 在每次修改 skill 時加一，並在 `CHANGELOG.md` 記一行改了什麼。
+這個 skill 常有兩份（使用者全域一份、專案裡給隊友一份），版本號較大的是新版；
+修改時兩份一起更新。`tests/` 是 skill 自己的腳本測試（`python -m pytest tests`），改腳本後要跑。
+
 ## 收尾報告
 
-結束時更新 `<work>/pipeline_report.md`，並在回覆中用白話摘要。每段都要標示
-「通過／部分通過／未做」，不能在還有 FAIL 或沒解釋的 WARN 時說「完成」。
+結束時再跑一次 `pipeline_status.py`，更新 `<work>/pipeline_report.md`，並在回覆中用白話摘要。
+每段都要標示「通過／部分通過／未做」，數字取自 `reports/*.json`；
+不能在還有 FAIL、沒解釋的 WARN，或狀態仍是「過期」時說「完成」。
 
 ```markdown
 # <書名> 切塊報告

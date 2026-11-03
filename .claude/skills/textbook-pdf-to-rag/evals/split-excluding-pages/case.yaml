@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: split-excluding-pages
+expected_outcome: |
+  Previews the split plan before writing, points out that the contents page is useful later for recovering section numbers and asks or recommends keeping it, splits the remaining pages into parts of at most 5 contiguous pages that never span the excluded 21-24 gap, and writes a manifest mapping every part to its original page numbers.
+context:
+  scaffold_script: place-files.sh

@@ -20,6 +20,7 @@ import tarfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from book_profile import IMAGE_PLACEHOLDER, OUTPUT_MARKER, load_profile, natural_key  # noqa: E402
+from stage_report import write_report  # noqa: E402
 
 MARKDOWN_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 HTML_IMAGE = re.compile(r"<img\b[^>]*>")
@@ -108,6 +109,7 @@ def main() -> None:
     parser.add_argument("--profile", type=Path)
     parser.add_argument("--dry-run", action="store_true", help="只列出會改的檔案與規則次數")
     parser.add_argument("--backup", type=Path, help="第一次寫入前把原檔打包備份到這裡")
+    parser.add_argument("--json", type=Path, help="同時把每條規則的觸發次數寫成 JSON")
     args = parser.parse_args()
     try:
         profile = load_profile(args.profile)
@@ -123,11 +125,14 @@ def main() -> None:
         print(f"已備份到 {archive}" if archive else "備份已存在，略過備份")
     protected = set(profile["protected_files"])
     totals: dict[str, int] = {}
-    changed = 0
+    changed: list[str] = []
+    protected_hits: dict[str, dict[str, int]] = {}
+    not_mineru: list[str] = []
     for path in paths:
         before = path.read_text(encoding="utf-8")
         if not before.startswith(OUTPUT_MARKER):
             print(f"略過（不是 MinerU 輸出）：{path.name}")
+            not_mineru.append(path.name)
             continue
         body, counts = clean(before.removeprefix(OUTPUT_MARKER), profile)
         after = f"{OUTPUT_MARKER}\n\n{body}\n"
@@ -135,15 +140,19 @@ def main() -> None:
             continue
         if path.name in protected:
             print(f"保護中（手動修正過，不改）：{path.name}  會觸發 {counts}")
+            protected_hits[path.name] = counts
             continue
-        changed += 1
+        changed.append(path.name)
         for name, count in counts.items():
             totals[name] = totals.get(name, 0) + count
         print(f"{path.name}：{len(before):,} → {len(after):,} bytes  {counts}")
         if not args.dry_run:
             path.write_text(after, encoding="utf-8")
     verb = "會修改" if args.dry_run else "已修改"
-    print(f"{verb} {changed} / {len(paths)} 個檔案；規則總次數：{totals}")
+    print(f"{verb} {len(changed)} / {len(paths)} 個檔案；規則總次數：{totals}")
+    write_report(args.json, "clean", ok=True, dry_run=args.dry_run, files_total=len(paths),
+                 files_changed=changed, rule_totals=totals, protected_would_change=protected_hits,
+                 skipped_not_mineru=not_mineru)
 
 
 if __name__ == "__main__":

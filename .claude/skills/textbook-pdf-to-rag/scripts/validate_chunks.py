@@ -18,6 +18,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from book_profile import load_profile  # noqa: E402
+from stage_report import write_report  # noqa: E402
 
 REQUIRED = ("index", "id", "kind", "section", "text", "source_files")
 CHARS_PER_TOKEN = 3.35  # nomic-embed-text on LaTeX-heavy English text
@@ -125,10 +126,10 @@ def main() -> None:
     for finding in findings:
         ids = f"  例：{', '.join(finding['ids'][:5])}" if finding["ids"] and finding["level"] != "PASS" else ""
         print(f"[{finding['level']}] {finding['check']}：{finding['message']}{ids}")
-    if args.json:
-        args.json.write_text(json.dumps({"chunks": len(records), "findings": findings},
-                                        ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    if any(finding["level"] == "FAIL" for finding in findings):
+    levels = Counter(finding["level"] for finding in findings)
+    write_report(args.json, "validate", ok=levels["FAIL"] == 0, chunks=len(records),
+                 fail=levels["FAIL"], warn=levels["WARN"], findings=findings)
+    if levels["FAIL"]:
         sys.exit(1)
 
 

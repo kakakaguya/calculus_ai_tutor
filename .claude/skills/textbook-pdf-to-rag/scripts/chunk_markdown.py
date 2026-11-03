@@ -30,6 +30,7 @@ import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from book_profile import IMAGE_PLACEHOLDER, OUTPUT_MARKER, load_profile, natural_key  # noqa: E402
+from stage_report import write_report  # noqa: E402
 
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 HEADING = re.compile(r"^ {0,3}(?:#{1,6}\s+|■\s*)(?P<text>\S.*?)\s*$")
@@ -479,6 +480,7 @@ def main() -> None:
     parser.add_argument("--profile", type=Path)
     parser.add_argument("--hints", type=Path, help="extract_layout_hints.py 的輸出（可省略）")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--json", type=Path, help="同時把切塊統計與被拒絕的標題行寫成 JSON")
     args = parser.parse_args()
     try:
         profile = load_profile(args.profile)
@@ -499,9 +501,11 @@ def main() -> None:
                   if path not in contents and path.name not in skip for line in lines]
     chunker = Chunker(profile, hint_keys, toc, appendix_toc, exercises,
                       numbered_sections(body_lines, patterns["section_heading"]))
+    skipped: list[str] = []
     for path, lines in texts.items():
         if path.name in skip or path in contents:
             print(f"略過（目錄或設定排除）：{path.name}")
+            skipped.append(path.name)
             continue
         for number, line in enumerate(lines, 1):
             chunker.feed(path.name, number, line)
@@ -527,6 +531,13 @@ def main() -> None:
         print(f"{len(chunker.rejected)} 行像章節標題但順序不合理，視為內文（前 10 筆）：")
         for line in chunker.rejected[:10]:
             print("  " + line)
+    write_report(args.json, "chunk", ok=True, out=str(args.out), records=len(records), kinds=kinds,
+                 body_sections=len(body), appendix_sections=len(appendix), toc_sections=len(toc),
+                 appendix_toc_sections=len(appendix_toc), toc_title_starts=chunker.toc_starts,
+                 subheading_hints=len(hint_keys), exercise_font_starts=chunker.exercise_starts,
+                 chapter_intros=chunker.chapter_intros, sidebars=chunker.sidebars,
+                 joined_paragraphs=joined, sidebar_candidates=chunker.sidebar_candidates,
+                 rejected_headings=chunker.rejected, skipped_files=skipped)
 
 
 if __name__ == "__main__":
