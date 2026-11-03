@@ -43,7 +43,7 @@ SYSTEM_PROMPT = (
     "請務必「優先」使用以下提供的參考資料來回答問題。\n"
     "引用參考資料時，請在該句末尾標註【教材 n】的編號 n，例如［1］或［1］［2］。\n"
     "如果參考資料中無法回答該問題，請依靠你的專業知識補充，但要說明哪些部分來自教材。\n\n"
-    "【參考資料】\n{context}"
+    "{level_hint}【參考資料】\n{context}"
 )
 PROMPT = ChatPromptTemplate.from_messages([("system", SYSTEM_PROMPT), ("human", "{input}")])
 
@@ -63,9 +63,14 @@ def _chain(llm: Runnable) -> Runnable:
     return PROMPT | llm | StrOutputParser()
 
 
-def answer_with(question: str, retriever: BlockSource, llm: Runnable) -> TutorAnswer:
+def _hint_text(level_hint: str) -> str:
+    return f"【學生程度】{level_hint}\n\n" if level_hint else ""
+
+
+def answer_with(question: str, retriever: BlockSource, llm: Runnable, level_hint: str = "") -> TutorAnswer:
     blocks = retriever.retrieve(question)
-    answer = _chain(llm).invoke({"context": format_context(blocks), "input": question})
+    answer = _chain(llm).invoke({"context": format_context(blocks), "input": question,
+                                 "level_hint": _hint_text(level_hint)})
     if not answer.strip():
         raise ValueError("沒有收到 AI 的回覆")
     return TutorAnswer(answer, source_list(blocks), passage_list(blocks))
@@ -100,9 +105,9 @@ def _tutor() -> tuple[Retriever, ChatOllama]:
     return retriever, llm
 
 
-def ask(question: str) -> TutorAnswer:
+def ask(question: str, level_hint: str = "") -> TutorAnswer:
     retriever, llm = _tutor()
-    return answer_with(question, retriever, llm)
+    return answer_with(question, retriever, llm, level_hint)
 
 
 def main() -> None:
@@ -117,7 +122,7 @@ def main() -> None:
     if args.show_context:
         print(context, end="\n" + "=" * 50 + "\n")
     print(f"問題：{args.question}\n助教回答：", end="", flush=True)
-    for piece in _chain(llm).stream({"context": context, "input": args.question}):
+    for piece in _chain(llm).stream({"context": context, "input": args.question, "level_hint": ""}):
         print(piece, end="", flush=True)
     print("\n\n" + format_sources(source_list(blocks)))
 
