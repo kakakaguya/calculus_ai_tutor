@@ -8,10 +8,14 @@ from __future__ import annotations
 
 import json
 import os
+import inspect
+import re
 import sqlite3
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from urllib.parse import urlparse, parse_qs
 
 
@@ -35,6 +39,13 @@ def initialize_database() -> None:
             conn.execute("ALTER TABLE qa_records ADD COLUMN answer_source TEXT NOT NULL DEFAULT 'ollama'")
         if "sources" not in columns:
             conn.execute("ALTER TABLE qa_records ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'")
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS user_profiles ("
+            "user_id INTEGER PRIMARY KEY, level TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', "
+            "strengths TEXT NOT NULL DEFAULT '[]', weaknesses TEXT NOT NULL DEFAULT '[]', "
+            "recommendations TEXT NOT NULL DEFAULT '[]', analyzed_count INTEGER NOT NULL DEFAULT 0, "
+            "updated_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+        )
 
 
 # --- 資料庫操作：使用者與對話 ---
@@ -95,6 +106,146 @@ def save_record(conversation_id: int, question: str, answer: str, source: str, s
         )
 
 
+# --- 學習程度判斷 ---
+
+LEVELS = ("初學", "中級", "進階")
+MIN_QUESTIONS = 3      # 至少問幾題才開始分析
+REFRESH_EVERY = 5      # 每新增幾題自動重新分析
+_analyzing: set[int] = set()
+_analyzing_lock = threading.Lock()
+
+
+def user_id_of(conversation_id: int) -> int | None:
+    with connect_db() as conn:
+        row = conn.execute("SELECT user_id FROM conversations WHERE conversation_id = ?", (conversation_id,)).fetchone()
+    return row["user_id"] if row else None
+
+
+def count_questions(user_id: int) -> int:
+    with connect_db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM qa_records q JOIN conversations c ON c.conversation_id = q.conversation_id "
+            "WHERE c.user_id = ?", (user_id,)
+        ).fetchone()
+    return row["n"]
+
+
+def recent_questions(user_id: int, limit: int = 30) -> list[str]:
+    with connect_db() as conn:
+        rows = conn.execute(
+            "SELECT q.question FROM qa_records q JOIN conversations c ON c.conversation_id = q.conversation_id "
+            "WHERE c.user_id = ? ORDER BY q.record_id DESC LIMIT ?", (user_id, limit)
+        ).fetchall()
+    return [row["question"] for row in reversed(rows)]
+
+
+def get_profile(user_id: int) -> dict | None:
+    with connect_db() as conn:
+        row = conn.execute("SELECT * FROM user_profiles WHERE user_id = ?", (user_id,)).fetchone()
+    if not row:
+        return None
+    profile = dict(row)
+    for key in ("strengths", "weaknesses", "recommendations"):
+        profile[key] = parse_sources(profile[key])
+    return profile
+
+
+def profile_status(user_id: int) -> dict:
+    total = count_questions(user_id)
+    profile = get_profile(user_id)
+    if profile:
+        profile["question_count"] = total
+        return profile
+    if total < MIN_QUESTIONS:
+        return {"level": None, "message": f"目前累積 {total} 題，至少需要 {MIN_QUESTIONS} 題才能分析。"}
+    return {"level": None, "message": "已有足夠提問，請按「重新分析」產生報告。"}
+
+
+def ollama_json(system: str, prompt: str) -> dict:
+    body = json.dumps({
+        "model": OLLAMA_MODEL, "stream": False, "think": False, "format": "json",
+        "options": {"temperature": 0.2},
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+    }).encode("utf-8")
+    request = Request(OLLAMA_URL, data=body, headers={"Content-Type": "application/json"})
+    with urlopen(request, timeout=180) as response:
+        text = json.loads(response.read().decode("utf-8"))["message"]["content"]
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+    return json.loads(text)
+
+
+def analyze_profile(user_id: int) -> dict | None:
+    questions = recent_questions(user_id)
+    if len(questions) < MIN_QUESTIONS:
+        return None
+    listing = "\n".join(f"{i}. {q}" for i, q in enumerate(questions, 1))
+    prompt = (
+        f"以下是一位學生依時間順序問過的微積分問題（可能含 LaTeX）：\n{listing}\n\n"
+        "請輸出 JSON，欄位如下：\n"
+        "- level：只能是「初學」「中級」「進階」其中之一\n"
+        "- summary：50 字內的程度描述\n"
+        "- strengths：學生看起來掌握較好的主題（陣列，最多 3 項）\n"
+        "- weaknesses：學生看起來觀念不清或反覆發問的主題（陣列，最多 3 項）\n"
+        "- recommendations：建議複習的微積分章節或主題（陣列，最多 3 項）\n"
+        "判斷依據：問題的基礎程度、是否反覆問同類概念、是否涉及進階技巧。"
+    )
+    result = ollama_json("你是微積分教學評估專家，根據學生的提問紀錄判斷其學習程度。只輸出 JSON。", prompt)
+    level = result.get("level")
+    if level not in LEVELS:
+        raise ValueError(f"模型回傳了無效的程度：{level}")
+
+    def as_list(value: object) -> list[str]:
+        return [str(item) for item in value][:3] if isinstance(value, list) else []
+
+    with connect_db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO user_profiles "
+            "(user_id, level, summary, strengths, weaknesses, recommendations, analyzed_count, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            (user_id, level, str(result.get("summary", "")),
+             json.dumps(as_list(result.get("strengths")), ensure_ascii=False),
+             json.dumps(as_list(result.get("weaknesses")), ensure_ascii=False),
+             json.dumps(as_list(result.get("recommendations")), ensure_ascii=False),
+             count_questions(user_id)),
+        )
+    return get_profile(user_id)
+
+
+def maybe_refresh_profile(user_id: int) -> None:
+    """提問數累積到門檻時，在背景重新分析（不拖慢回答）。"""
+    total = count_questions(user_id)
+    profile = get_profile(user_id)
+    due = total >= MIN_QUESTIONS if profile is None else total - profile["analyzed_count"] >= REFRESH_EVERY
+    if not due:
+        return
+    with _analyzing_lock:
+        if user_id in _analyzing:
+            return
+        _analyzing.add(user_id)
+
+    def worker() -> None:
+        try:
+            analyze_profile(user_id)
+        except Exception as error:
+            print("[profile] 分析失敗：", error)
+        finally:
+            with _analyzing_lock:
+                _analyzing.discard(user_id)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def build_level_hint(profile: dict) -> str:
+    tone = {
+        "初學": "學生是初學者：用淺顯的語言，先講直觀概念再給公式，步驟拆細，避免跳步。",
+        "中級": "學生是中級程度：簡要帶過基本概念，重點放在解題步驟與常見錯誤。",
+        "進階": "學生是進階程度：直接切入重點，可使用嚴謹推導，並補充延伸或更一般化的觀點。",
+    }[profile["level"]]
+    if profile.get("weaknesses"):
+        tone += "學生較弱的主題：" + "、".join(profile["weaknesses"]) + "，遇到相關內容請多加說明。"
+    return tone
+
+
 # --- 呼叫 LLM 邏輯 ---
 
 def friendly_ollama_error(error: Exception) -> str:
@@ -106,8 +257,11 @@ def friendly_ollama_error(error: Exception) -> str:
         return "無法連線到 Ollama；請確認 Ollama 服務已啟動。"
     return "Ollama 回覆格式異常，請稍後再試。"
 
-def call_ollama(question: str):
+def call_ollama(question: str, profile: dict | None = None):
     from tutor.main_rag import ask
+    # main_rag.ask 有支援 level_hint 參數時才帶入；沒有就維持原行為
+    if profile and "level_hint" in inspect.signature(ask).parameters:
+        return ask(question, level_hint=build_level_hint(profile))
     return ask(question)
 
 def demo_answer(question: str) -> str:
@@ -120,17 +274,19 @@ def answer_question(conversation_id: int, question: str) -> dict:
     if not conversation_id:
         raise ValueError("無效的對話紀錄 ID")
         
+    user_id = user_id_of(conversation_id)
+    profile = get_profile(user_id) if user_id else None
     try:
-        result = call_ollama(question)
+        result = call_ollama(question, profile)
         answer, sources = result.answer, list(result.sources)
         source, notice = "ollama", None
     except Exception as error: 
-        import traceback
-        traceback.print_exc()   # 在終端機印出完整錯誤
         answer, sources = demo_answer(question), []
         source, notice = "demo", friendly_ollama_error(error)
 
     save_record(conversation_id, question, answer, source, sources)
+    if user_id:
+        maybe_refresh_profile(user_id)
     
     with connect_db() as conn:
         conv = conn.execute("SELECT title FROM conversations WHERE conversation_id = ?", (conversation_id,)).fetchone()
@@ -215,6 +371,10 @@ math-field:focus{outline:3px solid #bfdbfe;border-color:#1769c2}
 .send-button:disabled{opacity:.6}
 #status{min-height:1.5rem;color:#64748b}
 
+.profile-box{font-size:.9rem;color:#334155}
+.level-badge{display:inline-block;padding:.1rem .6rem;border-radius:99px;background:#dbeafe;color:#1d4ed8;font-weight:700}
+.p-summary{margin:.4rem 0}.p-title{font-weight:700;margin-top:.5rem}
+.profile-box ul{margin:.2rem 0;padding-left:1.2rem}.p-meta{margin-top:.5rem;font-size:.8rem;color:#94a3b8}
 @media(max-width:768px){ #app-view{flex-direction:column} .sidebar{width:100%} #chat{max-height:40vh} }
 @media(max-width:520px){ .math-composer{padding:.75rem} .key-panel{grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem} .math-key{min-height:48px;font-size:.9rem} .template-key{font-size:.8rem} .send-button{width:100%} }
 </style>
@@ -245,6 +405,10 @@ math-field:focus{outline:3px solid #bfdbfe;border-color:#1769c2}
         <h3 style="margin-top:0.5rem; margin-bottom:0.5rem; font-size:1rem;">我的歷史紀錄</h3>
         <ul id="conv-list" class="item-list" role="listbox"></ul>
         <button id="new-conv-btn" class="full-btn" type="button">＋ 建立新對話</button>
+      </div>
+      <div class="panel">
+        <div class="user-profile"><span>📊 學習程度</span><button class="logout-btn" id="refresh-profile-btn" type="button" style="color:#1769c2">重新分析</button></div>
+        <div id="profile-box" class="profile-box">尚未分析</div>
       </div>
     </div>
 
@@ -338,6 +502,7 @@ logoutBtn.addEventListener('click', () => {
     loginView.style.display = 'flex';
     usernameInput.value = '';
     chat.textContent = '';
+    profileBox.textContent = '尚未分析';
 });
 
 function loginSuccess(user) {
@@ -347,6 +512,7 @@ function loginSuccess(user) {
     loginView.style.display = 'none';
     appView.style.display = 'flex';
     loadConversations();
+    loadProfile();
 }
 
 function checkSession() {
@@ -379,6 +545,32 @@ btnNewConv.addEventListener('click', async () => {
         currentConvId = res.conversation_id;
         await loadConversations();
     } catch(err) { alert(err.message); }
+});
+
+// --- Learning Profile ---
+const profileBox = document.getElementById('profile-box');
+const refreshProfileBtn = document.getElementById('refresh-profile-btn');
+function listHtml(title, items){
+    if(!Array.isArray(items) || !items.length) return '';
+    return '<div class="p-title">'+title+'</div><ul>'+items.map(i=>'<li>'+escapeHtml(String(i))+'</li>').join('')+'</ul>';
+}
+function renderProfile(p){
+    if(!p || !p.level){ profileBox.textContent = (p && p.message) || '尚未分析'; return; }
+    profileBox.innerHTML = '<span class="level-badge">'+escapeHtml(p.level)+'</span>'
+        + '<div class="p-summary">'+escapeHtml(p.summary||'')+'</div>'
+        + listHtml('掌握較好', p.strengths) + listHtml('需要加強', p.weaknesses) + listHtml('建議複習', p.recommendations)
+        + '<div class="p-meta">依據 '+p.analyzed_count+' 題提問分析（目前共 '+p.question_count+' 題）</div>';
+}
+async function loadProfile(){
+    if(!currentUser) return;
+    try{ renderProfile(await fetchApi('/api/profile?user_id='+currentUser.user_id)); }catch(e){}
+}
+refreshProfileBtn.addEventListener('click', async()=>{
+    if(!currentUser) return;
+    refreshProfileBtn.disabled = true; refreshProfileBtn.textContent = '分析中…';
+    try{ renderProfile(await fetchApi('/api/profile/refresh','POST',{user_id: currentUser.user_id})); }
+    catch(err){ profileBox.textContent = err.message; }
+    finally{ refreshProfileBtn.disabled = false; refreshProfileBtn.textContent = '重新分析'; }
 });
 
 // --- Math Composer Logic ---
@@ -435,6 +627,7 @@ form.addEventListener('submit',async event=>{
         input.setValue('');
         updatePreview();
         status.textContent=data.notice||'已收到 Ollama 回覆。';
+        loadProfile(); setTimeout(loadProfile, 20000);
         
         // 若這是新對話的第一個問題，重新載入左側選單以更新標題
         const activeLi = document.querySelector('#conv-list li.active');
@@ -480,6 +673,10 @@ class AppHandler(BaseHTTPRequestHandler):
             user_id = int(qs.get("user_id", [0])[0])
             self.send_json(200, get_conversations(user_id))
             
+        elif parsed.path == "/api/profile":
+            qs = parse_qs(parsed.query)
+            self.send_json(200, profile_status(int(qs.get("user_id", [0])[0])))
+
         elif parsed.path == "/api/history":
             qs = parse_qs(parsed.query)
             conv_id = int(qs.get("conversation_id", [0])[0])
@@ -504,6 +701,15 @@ class AppHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/conversations":
                 self.send_json(200, create_conversation(payload.get("user_id"), payload.get("title", "新對話")))
                 
+            elif parsed.path == "/api/profile/refresh":
+                user_id = int(payload.get("user_id") or 0)
+                try:
+                    analyze_profile(user_id)
+                except Exception as error:
+                    self.send_json(502, {"error": friendly_ollama_error(error)})
+                else:
+                    self.send_json(200, profile_status(user_id))
+
             elif parsed.path == "/api/chat":
                 self.send_json(200, answer_question(payload.get("conversation_id"), str(payload.get("question", ""))))
                 
