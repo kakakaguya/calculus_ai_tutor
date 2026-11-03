@@ -124,6 +124,18 @@ class WebAppTests(unittest.TestCase):
         self.assertIn('MathJax.typesetPromise', page)
         self.assertIn('renderSources', page)
 
+    def test_page_restores_markdown_and_math_block_rendering(self):
+        page = self.app.PAGE
+        self.assertIn("function renderInline(text)", page)
+        self.assertIn("function renderMarkdown(markdown)", page)
+        self.assertIn("line.match(/^(#{1,6})\\s+(.+)$/)", page)
+        self.assertIn("<strong>", page)
+        self.assertIn("<blockquote>", page)
+        self.assertIn("<pre><code>", page)
+        self.assertIn("if(line.trim()==='$$')", page)
+        self.assertIn("math.push(line)", page)
+        self.assertIn("escapeHtml(math.join('\\n'))", page)
+
     def test_all_keyboard_buttons_use_named_templates(self):
         page = self.app.PAGE
         self.assertNotIn("data-latex=", page)
@@ -137,8 +149,12 @@ class WebAppTests(unittest.TestCase):
         self.assertIn(
             "selectionMode:'placeholder'", page
         )
-        self.assertIn(r"power:'^{\\placeholder{?}}'", page)
+        self.assertIn(r"power:'x^{\\placeholder{?}}'", page)
         self.assertIn(r"fraction:'\\frac{\\placeholder{?}}{\\placeholder{?}}'", page)
+        self.assertIn("background:#fff;color:#000", page)
+        self.assertIn("math-field::part(virtual-keyboard-toggle)", page)
+        self.assertIn("math-field::part(menu-toggle)", page)
+        self.assertNotIn("background:linear-gradient", page)
 
 
 if __name__ == "__main__":
